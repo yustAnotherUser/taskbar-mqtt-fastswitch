@@ -5,6 +5,19 @@
 & "$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe" build src\TaskbarMqtt\TaskbarMqtt.csproj -c Release
 ```
 
+## Installer
+```powershell
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer.iss
+```
+- Script: `installer.iss` in repo root
+- Output: `dist\TaskbarMqtt_Setup_v1.1.exe`
+- Upload to GitHub Releases via `gh release upload <tag> <file>`
+
+## GitHub Releases
+```powershell
+gh release create v<ver> src\TaskbarMqtt\bin\Release\TaskbarMqtt.exe src\TaskbarMqtt\bin\Release\TaskbarMqtt.exe.config dist\TaskbarMqtt_Setup_v<ver>.exe --title "v<ver>" --notes "<notes>"
+```
+
 ## Project
 - .NET Framework 4.8 WinForms tray app
 - `src/TaskbarMqtt/` — single-project solution
@@ -23,3 +36,4 @@
 - No emojis in code or docs
 - No README/doc files unless explicitly asked
 - Keep `README.md` up to date with any changes
+- Keep `AGENTS.md` up to date when crucial things change
