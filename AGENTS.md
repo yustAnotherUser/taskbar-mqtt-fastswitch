@@ -5,6 +5,14 @@
 & "$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe" build src\TaskbarMqtt\TaskbarMqtt.csproj -c Release
 ```
 
+## Icons
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File generate-icons.ps1
+```
+- Script: `generate-icons.ps1` in repo root
+- Output: `src/TaskbarMqtt/Assets/app.ico`, `src/TaskbarMqtt/Assets/button-default.ico`
+- Must be run before build to embed updated icons
+
 ## Installer
 ```powershell
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer.iss

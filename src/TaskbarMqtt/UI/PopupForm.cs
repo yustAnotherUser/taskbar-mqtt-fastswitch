@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using TaskbarMqtt.Config;
 
@@ -14,28 +16,64 @@ namespace TaskbarMqtt.UI
         private FlowLayoutPanel _flow;
         private Timer _closeTimer;
         private readonly ToolTip _tooltip;
-        private const int ButtonSize = 56;
-        private const int Pad = 8;
+        private readonly int _buttonSize;
+        private readonly int _pad;
+        private readonly Font _btnFont;
+        private readonly double _scale;
 
-        private static readonly Color BgColor = Color.FromArgb(240, 240, 240);
-        private static readonly Color BtnBorder = Color.FromArgb(190, 190, 190);
-        private static readonly Color BtnHover = Color.FromArgb(210, 225, 245);
-        private static readonly Color BtnDown = Color.FromArgb(180, 205, 235);
-        private static readonly Font BtnFont = new Font("Segoe UI", 7F, FontStyle.Regular);
+        private const int BaseButtonSize = 44;
+        private const int BasePad = 6;
 
-        public PopupForm(List<ButtonConfig> buttons, Func<int, Image> imageFor, Action<int> onClick)
+        private static readonly bool IsDarkMode = DetectDarkMode();
+
+        private static readonly Color BgColor = IsDarkMode ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
+        private static readonly Color BtnBack = IsDarkMode ? Color.FromArgb(60, 60, 65) : SystemColors.Window;
+        private static readonly Color BtnFore = IsDarkMode ? Color.FromArgb(220, 220, 220) : SystemColors.ControlText;
+        private static readonly Color BtnBorder = IsDarkMode ? Color.FromArgb(90, 90, 95) : SystemColors.ControlDark;
+        private static readonly Color BtnHover = IsDarkMode ? Color.FromArgb(75, 75, 80) : SystemColors.ControlLight;
+        private static readonly Color BtnDown = IsDarkMode ? Color.FromArgb(50, 50, 55) : SystemColors.ControlDark;
+
+        private static bool DetectDarkMode()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+                {
+                    if (key != null)
+                    {
+                        var val = key.GetValue("AppsUseLightTheme");
+                        if (val is int i && i == 0) return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
+
+        [DllImport("user32.dll")]
+        private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
+
+        public PopupForm(List<ButtonConfig> buttons, Func<int, Image> imageFor, Action<int> onClick, int popupSizePercent = 100)
         {
             _buttons = buttons;
             _imageFor = imageFor;
             _onClick = onClick;
             _tooltip = new ToolTip();
+            _scale = Math.Max(0.25, Math.Min(2.0, popupSizePercent / 100.0));
+            _buttonSize = (int)Math.Round(BaseButtonSize * _scale);
+            _pad = Math.Max(2, (int)Math.Round(BasePad * _scale));
+            var fontSize = (float)Math.Max(5, Math.Round(7 * _scale));
+            _btnFont = new Font("Segoe UI", fontSize, FontStyle.Regular);
 
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             TopMost = true;
             StartPosition = FormStartPosition.Manual;
             BackColor = BgColor;
-            Padding = new Padding(Pad);
+            Padding = new Padding(_pad);
             DoubleBuffered = true;
 
             _flow = new FlowLayoutPanel
@@ -45,14 +83,15 @@ namespace TaskbarMqtt.UI
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 WrapContents = false,
                 Margin = new Padding(0),
-                Padding = new Padding(0)
+                Padding = new Padding(0),
+                BackColor = BgColor
             };
             Controls.Add(_flow);
 
             BuildButtons();
 
-            Size = new Size(_flow.Width + Pad * 2, _flow.Height + Pad * 2);
-            _flow.Location = new Point(Pad, Pad);
+            Size = new Size(_flow.Width + _pad * 2, _flow.Height + _pad * 2);
+            _flow.Location = new Point(_pad, _pad);
 
             Deactivate += (s, e) => Hide();
             Leave += (s, e) => Hide();
@@ -62,6 +101,34 @@ namespace TaskbarMqtt.UI
 
             MouseLeave += OnMaybeLeave;
             _flow.MouseLeave += OnMaybeLeave;
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            ApplyRegion();
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            ApplyRegion();
+        }
+
+        private int FormCornerRadius => Math.Max(4, (int)Math.Round(20 * _scale));
+        private int BtnCornerRadius => Math.Max(2, (int)Math.Round(8 * _scale));
+
+        private void ApplyRegion()
+        {
+            var region = CreateRoundRectRgn(0, 0, Width, Height, FormCornerRadius, FormCornerRadius);
+            SetWindowRgn(Handle, region, true);
+        }
+
+        private void RoundButton(Button btn)
+        {
+            var r = BtnCornerRadius;
+            var rgn = CreateRoundRectRgn(0, 0, btn.Width + 1, btn.Height + 1, r, r);
+            btn.Region = Region.FromHrgn(rgn);
         }
 
         private void BuildButtons()
@@ -74,18 +141,22 @@ namespace TaskbarMqtt.UI
                 var label = string.IsNullOrEmpty(cfg.Label) ? null : cfg.Label;
                 var topic = string.IsNullOrEmpty(cfg.Topic) ? null : cfg.Topic;
 
+                var margin = Math.Max(1, (int)Math.Round(3 * _scale));
+                var imgInset = Math.Max(4, (int)Math.Round(8 * _scale));
+
                 var b = new Button
                 {
-                    Width = ButtonSize,
-                    Height = ButtonSize,
-                    Margin = new Padding(3),
+                    Width = _buttonSize,
+                    Height = _buttonSize,
+                    Margin = new Padding(margin),
                     Padding = new Padding(0),
                     FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.White,
-                    Text = label ?? "",
-                    Font = BtnFont,
-                    TextAlign = ContentAlignment.BottomCenter,
-                    ImageAlign = ContentAlignment.TopCenter,
+                    BackColor = BtnBack,
+                    ForeColor = BtnFore,
+                    Text = label ?? (idx + 1).ToString(),
+                    Font = _btnFont,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    ImageAlign = ContentAlignment.MiddleCenter,
                     Tag = idx,
                     Cursor = Cursors.Hand,
                     TabStop = false
@@ -100,7 +171,7 @@ namespace TaskbarMqtt.UI
                     var img = _imageFor?.Invoke(idx);
                     if (img != null)
                     {
-                        b.Image = img;
+                        b.Image = ScaleImage(img, _buttonSize - imgInset, _buttonSize - imgInset);
                         b.Text = "";
                     }
                 }
@@ -108,6 +179,8 @@ namespace TaskbarMqtt.UI
 
                 if (!string.IsNullOrEmpty(topic))
                     _tooltip.SetToolTip(b, (label ?? "Button " + (idx + 1)) + "\n" + topic);
+
+                RoundButton(b);
 
                 b.Click += (s, e) =>
                 {
@@ -117,6 +190,22 @@ namespace TaskbarMqtt.UI
 
                 _flow.Controls.Add(b);
             }
+        }
+
+        private static Image ScaleImage(Image src, int maxW, int maxH)
+        {
+            var ratio = Math.Min((double)maxW / src.Width, (double)maxH / src.Height);
+            var w = (int)(src.Width * ratio);
+            var h = (int)(src.Height * ratio);
+            if (w < 1) w = 1;
+            if (h < 1) h = 1;
+            var bmp = new Bitmap(w, h);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(src, 0, 0, w, h);
+            }
+            return bmp;
         }
 
         public new void Show()

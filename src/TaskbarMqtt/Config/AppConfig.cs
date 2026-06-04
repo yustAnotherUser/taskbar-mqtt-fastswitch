@@ -39,6 +39,8 @@ namespace TaskbarMqtt.Config
 
         public int ButtonCount { get; set; } = 4;
         public bool StartWithWindows { get; set; } = false;
+        public int PopupSizePercent { get; set; } = 100;
+        public string IconPath { get; set; } = "";
         public BrokerSettings Broker { get; set; } = new BrokerSettings();
         public List<ButtonConfig> Buttons { get; set; } = new List<ButtonConfig>();
 
@@ -67,6 +69,10 @@ namespace TaskbarMqtt.Config
 
             while (Buttons.Count < ButtonCount) Buttons.Add(new ButtonConfig());
             while (Buttons.Count > ButtonCount) Buttons.RemoveAt(Buttons.Count - 1);
+
+            if (PopupSizePercent < 25) PopupSizePercent = 25;
+            if (PopupSizePercent > 200) PopupSizePercent = 200;
+            PopupSizePercent = ((PopupSizePercent + 12) / 25) * 25;
 
             if (Broker == null) Broker = new BrokerSettings();
             if (Broker.KeepAliveSeconds <= 0) Broker.KeepAliveSeconds = 30;

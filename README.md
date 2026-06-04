@@ -19,7 +19,6 @@ A tiny portable Windows tray app that lives in the notification area and publish
 Right-click any tray icon for:
 
 - **Settings…** — open the configuration dialog
-- **Reconnect now** — force an MQTT reconnect
 - **Quit** — exit the app
 
 ## Settings
@@ -27,6 +26,8 @@ Right-click any tray icon for:
 ### General
 - **Display mode** — popup panel from one tray icon, or one tray icon per button
 - **Start with Windows** — toggle autostart via `HKCU\…\Run`
+- **Popup size** — 25% to 200% in 25% steps
+- **Custom tray icon** — optional path to `.ico`, `.png`, `.jpg`, `.bmp` for the main tray icon (popup mode)
 
 ### Broker
 - **Host / Port / Username / Password / Client ID / Keep-alive**
@@ -36,12 +37,12 @@ Right-click any tray icon for:
 Click **Test connection** in the Broker tab to verify settings before saving.
 
 ### Buttons (per row)
-- **Label** — shown in tooltip / tray tooltip
+- **Label** — shown in tooltip / tray tooltip; falls back to the button's 1-based number when empty
 - **Topic** — the MQTT topic to publish to (required)
 - **Payload** — the message body (string)
 - **QoS** — 0, 1, or 2
 - **Retain** — whether the broker should retain the message
-- **Icon** — optional path to `.ico`, `.png`, `.jpg`, `.bmp`. PNGs/JPGs are auto-resized to fit the tray and the popup button.
+- **Icon** — optional path to `.ico`, `.png`, `.jpg`, `.bmp`. PNGs/JPGs are auto-resized to fit the tray and the popup button. When empty, the button number (1–9) is shown instead.
 
 Buttons are added and removed dynamically in the Buttons tab using the **+ Add Button** and **✕** buttons (minimum 1, maximum 9).
 
@@ -54,6 +55,8 @@ Buttons are added and removed dynamically in the Buttons tab using the **+ Add B
   "DisplayMode": "PopupPanel",
   "ButtonCount": 4,
   "StartWithWindows": false,
+  "PopupSizePercent": 100,
+  "IconPath": "",
   "Broker": {
     "Host": "192.168.1.10",
     "Port": 1883,
@@ -61,7 +64,7 @@ Buttons are added and removed dynamically in the Buttons tab using the **+ Add B
     "AllowInvalidCerts": true,
     "Username": "",
     "Password": "",
-    "ClientId": "",
+    "ClientId": "TaskbarMqtt",
     "KeepAliveSeconds": 30
   },
   "Buttons": [

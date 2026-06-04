@@ -57,6 +57,20 @@ namespace TaskbarMqtt.App
             _mqtt.UpdateConfig(_config.Broker);
         }
 
+        private Icon LoadCustomIcon()
+        {
+            if (!string.IsNullOrEmpty(_config.IconPath) && File.Exists(_config.IconPath))
+            {
+                try
+                {
+                    using (var bmp = new Bitmap(_config.IconPath))
+                        return BitmapToIcon(bmp, 16);
+                }
+                catch { }
+            }
+            return _appIcon ?? SystemIcons.Application;
+        }
+
         // ----- Resource icon loading -----
         private static Icon LoadResourceIcon(string fileName)
         {
@@ -110,13 +124,10 @@ namespace TaskbarMqtt.App
             _contextMenu = new ContextMenuStrip();
             var miSettings = new ToolStripMenuItem("Settings…");
             miSettings.Click += (s, e) => OpenSettings();
-            var miReconnect = new ToolStripMenuItem("Reconnect now");
-            miReconnect.Click += (s, e) => Task.Run(() => _mqtt.ReconnectAsync());
             var miQuit = new ToolStripMenuItem("Quit");
             miQuit.Click += (s, e) => ExitThread();
             _contextMenu.Opening += (s, e) => HidePopup();
             _contextMenu.Items.Add(miSettings);
-            _contextMenu.Items.Add(miReconnect);
             _contextMenu.Items.Add(new ToolStripSeparator());
             _contextMenu.Items.Add(miQuit);
         }
@@ -162,7 +173,7 @@ namespace TaskbarMqtt.App
         {
             _trayIcon = new NotifyIcon
             {
-                Icon = _appIcon ?? SystemIcons.Application,
+                Icon = LoadCustomIcon(),
                 Text = "Taskbar MQTT",
                 Visible = true,
                 ContextMenuStrip = _contextMenu
@@ -237,7 +248,7 @@ namespace TaskbarMqtt.App
             HidePopup();
             if (_popup == null || _popup.IsDisposed)
             {
-                _popup = new PopupForm(_config.Buttons, GetButtonImage, PublishButton);
+                _popup = new PopupForm(_config.Buttons, GetButtonImage, PublishButton, _config.PopupSizePercent);
             }
             _popup.ShowAtCursor();
         }
@@ -246,9 +257,11 @@ namespace TaskbarMqtt.App
         {
             try
             {
-                var ico = IconForButton(index, 32);
-                if (ico == null) return null;
-                return ico.ToBitmap();
+                if (index < 0 || index >= _config.Buttons.Count) return null;
+                var path = _config.Buttons[index].IconPath;
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+                using (var bmp = new Bitmap(path))
+                    return new Bitmap(bmp);
             }
             catch { return null; }
         }

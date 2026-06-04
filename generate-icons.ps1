@@ -13,7 +13,7 @@ function New-AppIcon([int]$size, [string]$path) {
     $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
     $g.Clear([System.Drawing.Color]::Transparent)
 
-    # Filled rounded square (DodgerBlue)
+    # Filled rounded square (MQTT purple)
     $rect = New-Object System.Drawing.Rectangle 1, 1, ($size - 2), ($size - 2)
     $path1 = New-Object System.Drawing.Drawing2D.GraphicsPath
     $radius = [Math]::Max(2, [int]($size / 6))
@@ -23,10 +23,10 @@ function New-AppIcon([int]$size, [string]$path) {
     $path1.AddArc($rect.Right - $d, $rect.Bottom - $d, $d, $d, 0, 90)
     $path1.AddArc($rect.X, $rect.Bottom - $d, $d, $d, 90, 90)
     $path1.CloseFigure()
-    $g.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::DodgerBlue)), $path1)
+    $g.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(123, 31, 162))), $path1)
 
-    # White "M" letter
-    $fontSize = [Math]::Max(7, [int]($size * 0.55))
+    # White "M" letter (larger, centered)
+    $fontSize = [Math]::Max(7, [int]($size * 0.70))
     $font = New-Object System.Drawing.Font 'Arial Black', $fontSize, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
     $sf = New-Object System.Drawing.StringFormat
     $sf.Alignment = [System.Drawing.StringAlignment]::Center

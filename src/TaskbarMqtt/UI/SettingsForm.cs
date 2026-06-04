@@ -23,6 +23,9 @@ namespace TaskbarMqtt.UI
         // General
         private RadioButton _rbPopup, _rbMulti;
         private CheckBox _chkAutoStart;
+        private ComboBox _cbPopupSize;
+        private TextBox _txIconPath;
+        private Button _btnIconBrowse;
 
         // Broker
         private TextBox _txHost, _txPort, _txUser, _txPass, _txClientId, _txKeepAlive;
@@ -114,6 +117,10 @@ namespace TaskbarMqtt.UI
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             _rbPopup = new RadioButton { Text = "Popup panel (left-click to open)", AutoSize = true };
             _rbMulti = new RadioButton { Text = "One tray icon per button", AutoSize = true };
@@ -129,7 +136,31 @@ namespace TaskbarMqtt.UI
             layout.Controls.Add(new Label { Text = "Autostart:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0) }, 0, 1);
             layout.Controls.Add(_chkAutoStart, 1, 1);
 
+            _cbPopupSize = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 80, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            for (int v = 25; v <= 200; v += 25)
+                _cbPopupSize.Items.Add(v + "%");
+            layout.Controls.Add(new Label { Text = "Popup size:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0) }, 0, 2);
+            layout.Controls.Add(_cbPopupSize, 1, 2);
+
+            _txIconPath = new TextBox { Width = 220, Anchor = AnchorStyles.Left };
+            _btnIconBrowse = new Button { Text = "Browse...", Width = 75, Height = 23, Margin = new Padding(6, 0, 0, 0) };
+            _btnIconBrowse.Click += OnIconBrowse;
+            var iconPanel = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0) };
+            iconPanel.Controls.Add(_txIconPath);
+            iconPanel.Controls.Add(_btnIconBrowse);
+            layout.Controls.Add(new Label { Text = "Custom tray icon:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0) }, 0, 3);
+            layout.Controls.Add(iconPanel, 1, 3);
+
             _tabGeneral.Controls.Add(layout);
+        }
+
+        private void OnIconBrowse(object sender, EventArgs e)
+        {
+            using (var dlg = new OpenFileDialog { Filter = "Icon files|*.ico;*.png;*.jpg;*.jpeg;*.bmp", Title = "Select custom tray icon" })
+            {
+                if (dlg.ShowDialog() == DialogResult.OK)
+                    _txIconPath.Text = dlg.FileName;
+            }
         }
 
         private void BuildBrokerTab()
@@ -138,20 +169,20 @@ namespace TaskbarMqtt.UI
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 7,
+                RowCount = 9,
                 Padding = new Padding(20, 20, 20, 8),
                 BackColor = Color.White
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < 9; i++)
                 layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
 
             _txHost = new TextBox { Width = 260, Anchor = AnchorStyles.Left };
             _txPort = new TextBox { Width = 70, Anchor = AnchorStyles.Left };
             _txUser = new TextBox { Width = 200, Anchor = AnchorStyles.Left };
             _txPass = new TextBox { Width = 200, Anchor = AnchorStyles.Left, UseSystemPasswordChar = true };
-            _txClientId = new TextBox { Width = 260, Anchor = AnchorStyles.Left };
+            _txClientId = new TextBox { Width = 260, Anchor = AnchorStyles.Left, Text = "TaskbarMqtt" };
             _txKeepAlive = new TextBox { Width = 70, Anchor = AnchorStyles.Left };
             _chkTls = new CheckBox { Text = "Use TLS", AutoSize = true };
             _chkInvalidCerts = new CheckBox { Text = "Allow self-signed certificates", AutoSize = true, Checked = true };
@@ -159,6 +190,10 @@ namespace TaskbarMqtt.UI
             var tlsPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Margin = new Padding(0) };
             tlsPanel.Controls.Add(_chkTls);
             tlsPanel.Controls.Add(_chkInvalidCerts);
+
+            _btnTestConn = new Button { Text = "Test Connection", Width = 130, Height = 26 };
+            _btnTestConn.Click += OnTestConnection;
+            _lblConnStatus = new Label { AutoSize = true, ForeColor = SystemColors.ControlDarkDark, Padding = new Padding(0, 5, 0, 0) };
 
             layout.Controls.Add(new Label { Text = "Host:", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
             layout.Controls.Add(_txHost, 1, 0);
@@ -172,24 +207,14 @@ namespace TaskbarMqtt.UI
             layout.Controls.Add(_txClientId, 1, 4);
             layout.Controls.Add(new Label { Text = "Keep alive (s):", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 5);
             layout.Controls.Add(_txKeepAlive, 1, 5);
-            layout.Controls.Add(new Label { Text = "TLS:", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 6);
+            layout.Controls.Add(new Label { Text = "Encryption (TLS/SSL):", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 6);
             layout.Controls.Add(tlsPanel, 1, 6);
+            layout.Controls.Add(new Label { Text = "", Anchor = AnchorStyles.Left }, 0, 7);
+            layout.Controls.Add(_btnTestConn, 1, 7);
+            layout.Controls.Add(new Label { Text = "", Anchor = AnchorStyles.Left }, 0, 8);
+            layout.Controls.Add(_lblConnStatus, 1, 8);
 
             _tabBroker.Controls.Add(layout);
-
-            var bottom = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                Padding = new Padding(20, 4, 20, 12),
-                BackColor = Color.White
-            };
-            _btnTestConn = new Button { Text = "Test Connection", Width = 130, Height = 26, Margin = new Padding(0, 0, 12, 0) };
-            _btnTestConn.Click += OnTestConnection;
-            _lblConnStatus = new Label { AutoSize = true, ForeColor = SystemColors.ControlDarkDark, Padding = new Padding(0, 5, 0, 0) };
-            bottom.Controls.Add(_btnTestConn);
-            bottom.Controls.Add(_lblConnStatus);
-            _tabBroker.Controls.Add(bottom);
         }
 
         private void BuildButtonsTab()
@@ -314,12 +339,19 @@ namespace TaskbarMqtt.UI
             _rbMulti.Checked = _draft.DisplayMode == DisplayMode.MultipleIcons;
             _chkAutoStart.Checked = _draft.StartWithWindows;
 
+            int pct = _draft.PopupSizePercent;
+            pct = ((pct + 12) / 25) * 25;
+            if (pct < 25) pct = 25;
+            if (pct > 200) pct = 200;
+            _cbPopupSize.SelectedItem = pct + "%";
+
             _txHost.Text = _draft.Broker.Host ?? "";
             _txPort.Text = _draft.Broker.Port.ToString();
             _txUser.Text = _draft.Broker.Username ?? "";
             _txPass.Text = _draft.Broker.Password ?? "";
-            _txClientId.Text = _draft.Broker.ClientId ?? "";
+            _txClientId.Text = string.IsNullOrEmpty(_draft.Broker.ClientId) ? "TaskbarMqtt" : _draft.Broker.ClientId;
             _txKeepAlive.Text = _draft.Broker.KeepAliveSeconds.ToString();
+            _txIconPath.Text = _draft.IconPath ?? "";
             _chkTls.Checked = _draft.Broker.UseTls;
             _chkInvalidCerts.Checked = _draft.Broker.AllowInvalidCerts;
 
@@ -345,6 +377,9 @@ namespace TaskbarMqtt.UI
             _draft.ButtonCount = _btnRows.Count;
             _draft.DisplayMode = _rbPopup.Checked ? DisplayMode.PopupPanel : DisplayMode.MultipleIcons;
             _draft.StartWithWindows = _chkAutoStart.Checked;
+            var sel = _cbPopupSize.SelectedItem?.ToString();
+            if (sel != null && int.TryParse(sel.TrimEnd('%'), out var pct))
+                _draft.PopupSizePercent = pct;
 
             if (!int.TryParse(_txPort.Text, out var port) || port <= 0 || port > 65535)
             {
