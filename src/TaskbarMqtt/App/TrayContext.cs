@@ -134,6 +134,12 @@ namespace TaskbarMqtt.App
         {
             _config = newConfig;
             _mqtt.UpdateConfig(_config.Broker);
+            if (_popup != null && !_popup.IsDisposed)
+            {
+                _popup.Hide();
+                _popup.Dispose();
+            }
+            _popup = null;
             RebuildTray();
         }
 
