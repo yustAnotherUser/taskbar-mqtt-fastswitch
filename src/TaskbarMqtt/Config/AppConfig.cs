@@ -45,6 +45,7 @@ namespace TaskbarMqtt.Config
         public int PopupSizePercent { get; set; } = 100;
         public bool ShowTooltips { get; set; } = true;
         public bool ShowPayloadInTooltip { get; set; } = false;
+        public bool PopupStaysOpen { get; set; } = false;
         public bool RoundedTrayIcon { get; set; } = false;
         public bool MakeWhiteTransparent { get; set; } = false;
         public bool MakeBlackTransparent { get; set; } = false;

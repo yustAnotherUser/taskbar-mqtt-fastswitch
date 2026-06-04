@@ -30,7 +30,7 @@ namespace TaskbarMqtt.UI
 
         // General
         private RadioButton _rbPopup, _rbMulti;
-        private CheckBox _chkAutoStart, _chkShowTooltips, _chkShowPayloadInTooltip, _chkRoundedTrayIcon, _chkIconWhiteTransparent, _chkIconBlackTransparent;
+        private CheckBox _chkAutoStart, _chkShowTooltips, _chkShowPayloadInTooltip, _chkPopupStayOpen, _chkRoundedTrayIcon, _chkIconWhiteTransparent, _chkIconBlackTransparent;
         private ComboBox _cbPopupSize;
         private TextBox _txIconPath;
         private Button _btnIconBrowse;
@@ -70,8 +70,16 @@ namespace TaskbarMqtt.UI
         {
             Controls.Clear();
             _btnRows.Clear();
+            ApplyFormDarkMode();
             BuildUi();
             PopulateFromDraft();
+        }
+
+        private void ApplyFormDarkMode()
+        {
+            if (!IsHandleCreated) return;
+            var val = _isDarkMode ? 1 : 0;
+            DwmSetWindowAttribute(Handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref val, sizeof(int));
         }
 
         [DllImport("dwmapi.dll")]
@@ -192,11 +200,7 @@ namespace TaskbarMqtt.UI
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            if (_isDarkMode)
-            {
-                var value = 1;
-                DwmSetWindowAttribute(Handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
-            }
+            ApplyFormDarkMode();
         }
 
         private static bool DetectDarkMode()
@@ -403,6 +407,7 @@ namespace TaskbarMqtt.UI
             _chkAutoStart = new CheckBox { Text = "Launch on Windows startup", AutoSize = true, ForeColor = _textColor };
             _chkShowTooltips = new CheckBox { Text = "Show tooltips in popup", AutoSize = true, ForeColor = _textColor };
             _chkShowPayloadInTooltip = new CheckBox { Text = "Show payload in tooltip", AutoSize = true, ForeColor = _textColor };
+            _chkPopupStayOpen = new CheckBox { Text = "Popup stays open on button click", AutoSize = true, ForeColor = _textColor };
 
             var modePanel = new Panel { AutoSize = true };
             modePanel.Controls.Add(_rbPopup);
@@ -439,19 +444,22 @@ namespace TaskbarMqtt.UI
             layout.Controls.Add(_chkShowTooltips, 1, 4);
             layout.Controls.Add(new Label { Text = "", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 5);
             layout.Controls.Add(_chkShowPayloadInTooltip, 1, 5);
+            layout.Controls.Add(new Label { Text = "Popup behavior:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 6);
+            layout.Controls.Add(_chkPopupStayOpen, 1, 6);
 
             _chkShowTooltips.CheckedChanged += (s, e) => _chkShowPayloadInTooltip.Enabled = _chkShowTooltips.Checked;
 
             _chkRoundedTrayIcon = new CheckBox { Text = "Rounded tray icon", AutoSize = true, ForeColor = _textColor };
-            layout.Controls.Add(new Label { Text = "Appearance:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 6);
-            layout.Controls.Add(_chkRoundedTrayIcon, 1, 6);
+            layout.Controls.Add(new Label { Text = "Appearance:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 7);
+            layout.Controls.Add(_chkRoundedTrayIcon, 1, 7);
 
             _chkIconWhiteTransparent = new CheckBox { Text = "White\u2192Transparent (tray icon)", AutoSize = true, ForeColor = _textColor };
             _chkIconBlackTransparent = new CheckBox { Text = "Black\u2192Transparent (tray icon)", AutoSize = true, ForeColor = _textColor };
-            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 7);
-            layout.Controls.Add(_chkIconWhiteTransparent, 1, 7);
             layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 8);
-            layout.Controls.Add(_chkIconBlackTransparent, 1, 8);
+            layout.Controls.Add(_chkIconWhiteTransparent, 1, 8);
+
+            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 9);
+            layout.Controls.Add(_chkIconBlackTransparent, 1, 9);
 
             _tabPageGeneral.Controls.Add(layout);
         }
@@ -559,7 +567,7 @@ namespace TaskbarMqtt.UI
             {
                 "Taskbar MQTT FastSwitch",
                 "",
-                "Version 1.6",
+                "Version 1.7",
                 "",
                 "Created by MiniMax V3",
                 "Made working by OpenCode's Big Pickle",
@@ -694,6 +702,7 @@ namespace TaskbarMqtt.UI
             _chkShowTooltips.Checked = _draft.ShowTooltips;
             _chkShowPayloadInTooltip.Checked = _draft.ShowPayloadInTooltip;
             _chkShowPayloadInTooltip.Enabled = _draft.ShowTooltips;
+            _chkPopupStayOpen.Checked = _draft.PopupStaysOpen;
             _chkRoundedTrayIcon.Checked = _draft.RoundedTrayIcon;
             _chkIconWhiteTransparent.Checked = _draft.MakeWhiteTransparent;
             _chkIconBlackTransparent.Checked = _draft.MakeBlackTransparent;
@@ -733,6 +742,7 @@ namespace TaskbarMqtt.UI
             _draft.StartWithWindows = _chkAutoStart.Checked;
             _draft.ShowTooltips = _chkShowTooltips.Checked;
             _draft.ShowPayloadInTooltip = _chkShowPayloadInTooltip.Checked;
+            _draft.PopupStaysOpen = _chkPopupStayOpen.Checked;
             _draft.IconPath = _txIconPath.Text.Trim();
             _draft.RoundedTrayIcon = _chkRoundedTrayIcon.Checked;
             _draft.MakeWhiteTransparent = _chkIconWhiteTransparent.Checked;

@@ -24,6 +24,7 @@ namespace TaskbarMqtt.UI
         private readonly double _scale;
         private readonly bool _showTooltips;
         private readonly bool _showPayloadInTooltip;
+        private readonly bool _stayOpen;
 
         private const int BaseButtonSize = 44;
         private const int BasePad = 6;
@@ -60,7 +61,7 @@ namespace TaskbarMqtt.UI
         [DllImport("user32.dll")]
         private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
 
-        public PopupForm(List<ButtonConfig> buttons, Func<int, Image> imageFor, Action<int> onClick, Bitmap watermark, int popupSizePercent = 100, bool showTooltips = true, bool showPayloadInTooltip = false)
+        public PopupForm(List<ButtonConfig> buttons, Func<int, Image> imageFor, Action<int> onClick, Bitmap watermark, int popupSizePercent = 100, bool showTooltips = true, bool showPayloadInTooltip = false, bool stayOpen = false)
         {
             _buttons = buttons;
             _imageFor = imageFor;
@@ -68,6 +69,7 @@ namespace TaskbarMqtt.UI
             _watermark = watermark;
             _showTooltips = showTooltips;
             _showPayloadInTooltip = showPayloadInTooltip;
+            _stayOpen = stayOpen;
             _tooltip = new ToolTip();
             _scale = Math.Max(0.25, Math.Min(2.0, popupSizePercent / 100.0));
             _buttonSize = (int)Math.Round(BaseButtonSize * _scale);
@@ -207,7 +209,7 @@ namespace TaskbarMqtt.UI
                 b.Click += (s, e) =>
                 {
                     try { _onClick?.Invoke(idx); } catch { }
-                    Hide();
+                    if (!_stayOpen) Hide();
                 };
 
                 _flow.Controls.Add(b);

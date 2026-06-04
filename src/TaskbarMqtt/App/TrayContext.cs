@@ -387,7 +387,7 @@ namespace TaskbarMqtt.App
             HidePopup();
             if (_popup == null || _popup.IsDisposed)
             {
-                _popup = new PopupForm(_config.Buttons, GetButtonImage, PublishButton, _mqttIcon, _config.PopupSizePercent, _config.ShowTooltips, _config.ShowPayloadInTooltip);
+                _popup = new PopupForm(_config.Buttons, GetButtonImage, PublishButton, _mqttIcon, _config.PopupSizePercent, _config.ShowTooltips, _config.ShowPayloadInTooltip, _config.PopupStaysOpen);
             }
             _popup.ShowAtCursor();
         }
