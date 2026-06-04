@@ -74,6 +74,7 @@ namespace TaskbarMqtt.Mqtt
                     .WithTcpServer(snapshot.Host, snapshot.Port)
                     .WithClientId(CurrentClientId)
                     .WithKeepAlivePeriod(TimeSpan.FromSeconds(snapshot.KeepAliveSeconds > 0 ? snapshot.KeepAliveSeconds : 30))
+                    .WithTimeout(TimeSpan.FromSeconds(snapshot.ConnectTimeoutSeconds > 0 ? snapshot.ConnectTimeoutSeconds : 10))
                     .WithCleanSession();
 
                 if (!string.IsNullOrEmpty(snapshot.Username))

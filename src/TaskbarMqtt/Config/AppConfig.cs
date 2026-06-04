@@ -20,6 +20,7 @@ namespace TaskbarMqtt.Config
         public string Password { get; set; } = "";
         public string ClientId { get; set; } = "";
         public int KeepAliveSeconds { get; set; } = 30;
+        public int ConnectTimeoutSeconds { get; set; } = 10;
     }
 
     public class ButtonConfig
@@ -83,6 +84,7 @@ namespace TaskbarMqtt.Config
 
             if (Broker == null) Broker = new BrokerSettings();
             if (Broker.KeepAliveSeconds <= 0) Broker.KeepAliveSeconds = 30;
+            if (Broker.ConnectTimeoutSeconds <= 0) Broker.ConnectTimeoutSeconds = 10;
         }
     }
 }

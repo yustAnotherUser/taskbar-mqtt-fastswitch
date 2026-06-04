@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Win32;
 using TaskbarMqtt.App;
 using TaskbarMqtt.Config;
 using TaskbarMqtt.Mqtt;
@@ -33,7 +36,7 @@ namespace TaskbarMqtt.UI
         private Button _btnIconBrowse;
 
         // Broker
-        private TextBox _txHost, _txPort, _txUser, _txPass, _txClientId, _txKeepAlive;
+        private TextBox _txHost, _txPort, _txUser, _txPass, _txClientId, _txKeepAlive, _txConnectTimeout;
         private CheckBox _chkTls, _chkInvalidCerts;
         private Button _btnTestConn;
         private Label _lblConnStatus;
@@ -42,21 +45,34 @@ namespace TaskbarMqtt.UI
         private FlowLayoutPanel _btnPanel;
         private List<ButtonRow> _btnRows = new List<ButtonRow>();
 
-        private static readonly bool IsDarkMode = DetectDarkMode();
+        private bool _isDarkMode;
+        private Color _formBack, _pageBack, _cellBack, _headerBack, _textColor, _grayText, _borderColor, _hoverBack;
+        private Color _inputBack, _inputFore, _btnBack, _btnFore;
 
-        private static readonly Color FormBack = IsDarkMode ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
-        private static readonly Color PageBack = IsDarkMode ? Color.FromArgb(37, 37, 38) : SystemColors.Window;
-        private static readonly Color CellBack = IsDarkMode ? Color.FromArgb(37, 37, 38) : Color.White;
-        private static readonly Color HeaderBack = IsDarkMode ? Color.FromArgb(60, 60, 65) : Color.FromArgb(245, 245, 245);
-        private static readonly Color TextColor = IsDarkMode ? Color.FromArgb(220, 220, 220) : SystemColors.ControlText;
-        private static readonly Color GrayText = IsDarkMode ? Color.FromArgb(150, 150, 150) : Color.FromArgb(120, 120, 120);
-        private static readonly Color BorderColor = IsDarkMode ? Color.FromArgb(90, 90, 95) : SystemColors.ControlDark;
-        private static readonly Color HoverBack = IsDarkMode ? Color.FromArgb(75, 75, 80) : Color.FromArgb(230, 230, 230);
+        private void ReloadTheme()
+        {
+            _isDarkMode = DetectDarkMode();
+            _formBack = _isDarkMode ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
+            _pageBack = _isDarkMode ? Color.FromArgb(37, 37, 38) : SystemColors.Window;
+            _cellBack = _isDarkMode ? Color.FromArgb(37, 37, 38) : Color.White;
+            _headerBack = _isDarkMode ? Color.FromArgb(60, 60, 65) : Color.FromArgb(245, 245, 245);
+            _textColor = _isDarkMode ? Color.FromArgb(220, 220, 220) : SystemColors.ControlText;
+            _grayText = _isDarkMode ? Color.FromArgb(150, 150, 150) : Color.FromArgb(120, 120, 120);
+            _borderColor = _isDarkMode ? Color.FromArgb(90, 90, 95) : SystemColors.ControlDark;
+            _hoverBack = _isDarkMode ? Color.FromArgb(75, 75, 80) : Color.FromArgb(230, 230, 230);
+            _inputBack = _isDarkMode ? Color.FromArgb(55, 55, 60) : SystemColors.Window;
+            _inputFore = _isDarkMode ? Color.FromArgb(220, 220, 220) : SystemColors.WindowText;
+            _btnBack = _isDarkMode ? Color.FromArgb(70, 70, 75) : SystemColors.Control;
+            _btnFore = _isDarkMode ? Color.FromArgb(220, 220, 220) : SystemColors.ControlText;
+        }
 
-        private static readonly Color InputBack = IsDarkMode ? Color.FromArgb(55, 55, 60) : SystemColors.Window;
-        private static readonly Color InputFore = IsDarkMode ? Color.FromArgb(220, 220, 220) : SystemColors.WindowText;
-        private static readonly Color BtnBack = IsDarkMode ? Color.FromArgb(70, 70, 75) : SystemColors.Control;
-        private static readonly Color BtnFore = IsDarkMode ? Color.FromArgb(220, 220, 220) : SystemColors.ControlText;
+        private void ApplyTheme()
+        {
+            Controls.Clear();
+            _btnRows.Clear();
+            BuildUi();
+            PopulateFromDraft();
+        }
 
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
@@ -71,9 +87,9 @@ namespace TaskbarMqtt.UI
         private const int WM_THEMECHANGED = 0x031A;
         private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
-        private static void ApplyDarkWindow(Control ctl)
+        private void ApplyDarkWindow(Control ctl)
         {
-            if (!IsDarkMode) return;
+            if (!_isDarkMode) return;
             Action apply = () =>
             {
                 if (!ctl.IsHandleCreated) return;
@@ -109,10 +125,74 @@ namespace TaskbarMqtt.UI
                 return Icon.FromHandle(resized.GetHicon());
         }
 
+        private static Icon IconFromResizedBitmap(Bitmap bmp)
+        {
+            return Icon.FromHandle(bmp.GetHicon());
+        }
+
+        private static Bitmap RoundBitmap(Bitmap src, int radius)
+        {
+            var bmp = new Bitmap(src.Width, src.Height, PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+            using (var path = GetRoundRect(new Rectangle(0, 0, src.Width, src.Height), radius))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.SetClip(path);
+                g.DrawImage(src, 0, 0);
+            }
+            return bmp;
+        }
+
+        private static GraphicsPath GetRoundRect(Rectangle r, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        private static Bitmap LoadAlphaBitmap(string path)
+        {
+            using (var tmp = new Bitmap(path))
+            {
+                if (tmp.PixelFormat == PixelFormat.Format32bppArgb)
+                    return new Bitmap(tmp);
+                var bmp = new Bitmap(tmp.Width, tmp.Height, PixelFormat.Format32bppArgb);
+                using (var g = Graphics.FromImage(bmp))
+                    g.DrawImage(tmp, 0, 0, tmp.Width, tmp.Height);
+                return bmp;
+            }
+        }
+
+        private static Bitmap ToAlpha(Bitmap src)
+        {
+            var bmp = new Bitmap(src.Width, src.Height, PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+                g.DrawImage(src, 0, 0, src.Width, src.Height);
+            return bmp;
+        }
+
+        private static void ApplyTransparency(Bitmap bmp, bool makeWhite, bool makeBlack)
+        {
+            if (!makeWhite && !makeBlack) return;
+            for (int x = 0; x < bmp.Width; x++)
+                for (int y = 0; y < bmp.Height; y++)
+                {
+                    var p = bmp.GetPixel(x, y);
+                    if ((makeWhite && p.R > 240 && p.G > 240 && p.B > 240) ||
+                        (makeBlack && p.R < 15 && p.G < 15 && p.B < 15))
+                        bmp.SetPixel(x, y, Color.Transparent);
+                }
+        }
+
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            if (IsDarkMode)
+            if (_isDarkMode)
             {
                 var value = 1;
                 DwmSetWindowAttribute(Handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
@@ -142,8 +222,20 @@ namespace TaskbarMqtt.UI
             _draft = CloneConfig(config);
             _onApply = onApply;
 
+            ReloadTheme();
             BuildUi();
             PopulateFromDraft();
+
+            Microsoft.Win32.SystemEvents.UserPreferenceChanged += (s, e) =>
+            {
+                if (e.Category == UserPreferenceCategory.General)
+                {
+                    var wasDark = _isDarkMode;
+                    ReloadTheme();
+                    if (_isDarkMode != wasDark)
+                        ApplyTheme();
+                }
+            };
         }
 
         private static AppConfig CloneConfig(AppConfig src)
@@ -163,34 +255,56 @@ namespace TaskbarMqtt.UI
             MinimumSize = new Size(640, 480);
             ShowInTaskbar = true;
             Font = new Font("Segoe UI", 9F);
-            BackColor = FormBack;
-            ForeColor = TextColor;
+            BackColor = _formBack;
+            ForeColor = _textColor;
 
             try
             {
-                if (!string.IsNullOrEmpty(_draft.IconPath) && File.Exists(_draft.IconPath))
+                var makeWhite = _draft.MakeWhiteTransparent;
+                var makeBlack = _draft.MakeBlackTransparent;
+                var round = _draft.RoundedTrayIcon;
+
+                Bitmap LoadIconBitmap()
                 {
-                    var ext = Path.GetExtension(_draft.IconPath)?.ToLowerInvariant();
-                    if (ext == ".ico")
-                        Icon = new Icon(_draft.IconPath);
-                    else
-                        using (var bmp = new Bitmap(_draft.IconPath))
-                            Icon = BitmapToIcon(bmp, 16);
-                }
-                else
-                {
+                    if (!string.IsNullOrEmpty(_draft.IconPath) && File.Exists(_draft.IconPath))
+                    {
+                        var ext = Path.GetExtension(_draft.IconPath)?.ToLowerInvariant();
+                        if (ext == ".ico")
+                            using (var tmp = new Icon(_draft.IconPath))
+                                return tmp.ToBitmap();
+                        return LoadAlphaBitmap(_draft.IconPath);
+                    }
                     var asm = Assembly.GetExecutingAssembly();
                     var resName = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(".app.ico", StringComparison.OrdinalIgnoreCase));
                     if (resName != null)
                         using (var s = asm.GetManifestResourceStream(resName))
                             if (s != null)
-                                Icon = new Icon(s);
+                                using (var tmp = new Icon(s))
+                                    return tmp.ToBitmap();
+                    return null;
+                }
+
+                using (var raw = LoadIconBitmap())
+                {
+                    if (raw == null) return;
+                    using (var alpha = ToAlpha(raw))
+                    {
+                        ApplyTransparency(alpha, makeWhite, makeBlack);
+                        using (var resized = new Bitmap(alpha, 16, 16))
+                        {
+                            if (round)
+                                using (var rounded = RoundBitmap(resized, 3))
+                                    Icon = IconFromResizedBitmap(rounded);
+                            else
+                                Icon = IconFromResizedBitmap(resized);
+                        }
+                    }
                 }
             }
             catch { }
 
             // Tab strip
-            _tabStrip = new Panel { Dock = DockStyle.Top, Height = 32, BackColor = FormBack };
+            _tabStrip = new Panel { Dock = DockStyle.Top, Height = 32, BackColor = _formBack };
 
             var tabNames = new[] { "General", "Broker", "Buttons", "About" };
             _tabLabels = new List<Label>();
@@ -205,29 +319,29 @@ namespace TaskbarMqtt.UI
                     Width = 110,
                     Height = 32,
                     TextAlign = ContentAlignment.MiddleCenter,
-                    ForeColor = sel ? TextColor : GrayText,
-                    BackColor = sel ? CellBack : FormBack,
+                    ForeColor = sel ? _textColor : _grayText,
+                    BackColor = sel ? _cellBack : _formBack,
                     Font = new Font("Segoe UI", 9F, sel ? FontStyle.Bold : FontStyle.Regular),
                     Cursor = Cursors.Hand
                 };
                 lbl.Location = new Point(xPos, 0);
                 var idx = i;
                 lbl.Click += (s, e) => SelectTab(idx);
-                lbl.MouseEnter += (s, e) => { if (idx != _selectedTabIndex) lbl.BackColor = HoverBack; };
-                lbl.MouseLeave += (s, e) => { if (idx != _selectedTabIndex) lbl.BackColor = FormBack; };
+                lbl.MouseEnter += (s, e) => { if (idx != _selectedTabIndex) lbl.BackColor = _hoverBack; };
+                lbl.MouseLeave += (s, e) => { if (idx != _selectedTabIndex) lbl.BackColor = _formBack; };
                 _tabLabels.Add(lbl);
                 _tabStrip.Controls.Add(lbl);
                 xPos += lbl.Width;
             }
-            var borderLine = new Panel { BackColor = BorderColor, Height = 1, Dock = DockStyle.Bottom };
+            var borderLine = new Panel { BackColor = _borderColor, Height = 1, Dock = DockStyle.Bottom };
             _tabStrip.Controls.Add(borderLine);
 
             // Content panel
-            _tabContent = new Panel { Dock = DockStyle.Fill, BackColor = CellBack };
-            _tabPageGeneral = new Panel { Dock = DockStyle.Fill, BackColor = CellBack };
-            _tabPageBroker = new Panel { Dock = DockStyle.Fill, BackColor = CellBack };
-            _tabPageButtons = new Panel { Dock = DockStyle.Fill, BackColor = CellBack };
-            _tabPageAbout = new Panel { Dock = DockStyle.Fill, BackColor = CellBack };
+            _tabContent = new Panel { Dock = DockStyle.Fill, BackColor = _cellBack };
+            _tabPageGeneral = new Panel { Dock = DockStyle.Fill, BackColor = _cellBack };
+            _tabPageBroker = new Panel { Dock = DockStyle.Fill, BackColor = _cellBack };
+            _tabPageButtons = new Panel { Dock = DockStyle.Fill, BackColor = _cellBack };
+            _tabPageAbout = new Panel { Dock = DockStyle.Fill, BackColor = _cellBack };
             _tabContent.Controls.Add(_tabPageAbout);
             _tabContent.Controls.Add(_tabPageButtons);
             _tabContent.Controls.Add(_tabPageBroker);
@@ -242,12 +356,12 @@ namespace TaskbarMqtt.UI
             BuildButtonsTab();
             BuildAboutTab();
 
-            var btnApply = new Button { Text = "Apply", Width = 86, Height = 26, BackColor = BtnBack, ForeColor = BtnFore, FlatStyle = FlatStyle.Flat };
-            btnApply.FlatAppearance.BorderColor = BorderColor;
-            var btnOk = new Button { Text = "OK", Width = 86, Height = 26, BackColor = BtnBack, ForeColor = BtnFore, FlatStyle = FlatStyle.Flat };
-            btnOk.FlatAppearance.BorderColor = BorderColor;
-            var btnCancel = new Button { Text = "Cancel", Width = 86, Height = 26, BackColor = BtnBack, ForeColor = BtnFore, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat };
-            btnCancel.FlatAppearance.BorderColor = BorderColor;
+            var btnApply = new Button { Text = "Apply", Width = 86, Height = 26, BackColor = _btnBack, ForeColor = _btnFore, FlatStyle = FlatStyle.Flat };
+            btnApply.FlatAppearance.BorderColor = _borderColor;
+            var btnOk = new Button { Text = "OK", Width = 86, Height = 26, BackColor = _btnBack, ForeColor = _btnFore, FlatStyle = FlatStyle.Flat };
+            btnOk.FlatAppearance.BorderColor = _borderColor;
+            var btnCancel = new Button { Text = "Cancel", Width = 86, Height = 26, BackColor = _btnBack, ForeColor = _btnFore, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat };
+            btnCancel.FlatAppearance.BorderColor = _borderColor;
 
             btnOk.Click += (s, e) => { if (Apply()) { DialogResult = DialogResult.OK; Close(); } };
             btnApply.Click += (s, e) => { Apply(); };
@@ -277,63 +391,63 @@ namespace TaskbarMqtt.UI
                 ColumnCount = 2,
                 RowCount = 9,
                 Padding = new Padding(20, 20, 20, 8),
-                BackColor = CellBack
+                BackColor = _cellBack
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             for (int i = 0; i < 9; i++)
                 layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            _rbPopup = new RadioButton { Text = "Popup panel (left-click to open)", AutoSize = true, ForeColor = TextColor };
-            _rbMulti = new RadioButton { Text = "One tray icon per button", AutoSize = true, ForeColor = TextColor };
-            _chkAutoStart = new CheckBox { Text = "Launch on Windows startup", AutoSize = true, ForeColor = TextColor };
-            _chkShowTooltips = new CheckBox { Text = "Show tooltips in popup", AutoSize = true, ForeColor = TextColor };
-            _chkShowPayloadInTooltip = new CheckBox { Text = "Show payload in tooltip", AutoSize = true, ForeColor = TextColor };
+            _rbPopup = new RadioButton { Text = "Popup panel (left-click to open)", AutoSize = true, ForeColor = _textColor };
+            _rbMulti = new RadioButton { Text = "One tray icon per button", AutoSize = true, ForeColor = _textColor };
+            _chkAutoStart = new CheckBox { Text = "Launch on Windows startup", AutoSize = true, ForeColor = _textColor };
+            _chkShowTooltips = new CheckBox { Text = "Show tooltips in popup", AutoSize = true, ForeColor = _textColor };
+            _chkShowPayloadInTooltip = new CheckBox { Text = "Show payload in tooltip", AutoSize = true, ForeColor = _textColor };
 
             var modePanel = new Panel { AutoSize = true };
             modePanel.Controls.Add(_rbPopup);
             modePanel.Controls.Add(_rbMulti);
             _rbMulti.Top = _rbPopup.Bottom + 4;
 
-            layout.Controls.Add(new Label { Text = "Display mode:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = TextColor }, 0, 0);
+            layout.Controls.Add(new Label { Text = "Display mode:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 0);
             layout.Controls.Add(modePanel, 1, 0);
-            layout.Controls.Add(new Label { Text = "Autostart:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = TextColor }, 0, 1);
+            layout.Controls.Add(new Label { Text = "Autostart:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 1);
             layout.Controls.Add(_chkAutoStart, 1, 1);
 
-            _cbPopupSize = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 80, Anchor = AnchorStyles.Left | AnchorStyles.Top, BackColor = InputBack, ForeColor = InputFore, DrawMode = DrawMode.OwnerDrawFixed };
+            _cbPopupSize = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 80, Anchor = AnchorStyles.Left | AnchorStyles.Top, BackColor = _inputBack, ForeColor = _inputFore, DrawMode = DrawMode.OwnerDrawFixed };
             _cbPopupSize.DrawItem += ComboDrawItem;
             ApplyDarkWindow(_cbPopupSize);
             for (int v = 25; v <= 200; v += 25)
                 _cbPopupSize.Items.Add(v + "%");
-            layout.Controls.Add(new Label { Text = "Popup size:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = TextColor }, 0, 2);
+            layout.Controls.Add(new Label { Text = "Popup size:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 2);
             layout.Controls.Add(_cbPopupSize, 1, 2);
 
-            _txIconPath = new TextBox { Width = 220, Anchor = AnchorStyles.Left, BackColor = InputBack, ForeColor = InputFore };
-            _btnIconBrowse = new Button { Text = "Browse\u2026", Width = 75, Height = 23, Margin = new Padding(6, 0, 0, 0), BackColor = BtnBack, ForeColor = BtnFore, FlatStyle = FlatStyle.Flat };
-            _btnIconBrowse.FlatAppearance.BorderColor = BorderColor;
+            _txIconPath = new TextBox { Width = 220, Anchor = AnchorStyles.Left, BackColor = _inputBack, ForeColor = _inputFore };
+            _btnIconBrowse = new Button { Text = "Browse\u2026", Width = 75, Height = 23, Margin = new Padding(6, 0, 0, 0), BackColor = _btnBack, ForeColor = _btnFore, FlatStyle = FlatStyle.Flat };
+            _btnIconBrowse.FlatAppearance.BorderColor = _borderColor;
             _btnIconBrowse.Click += OnIconBrowse;
-            var btnClearIcon = new Button { Text = "Clear", Width = 55, Height = 23, Margin = new Padding(4, 0, 0, 0), BackColor = BtnBack, ForeColor = BtnFore, FlatStyle = FlatStyle.Flat };
-            btnClearIcon.FlatAppearance.BorderColor = BorderColor;
+            var btnClearIcon = new Button { Text = "Clear", Width = 55, Height = 23, Margin = new Padding(4, 0, 0, 0), BackColor = _btnBack, ForeColor = _btnFore, FlatStyle = FlatStyle.Flat };
+            btnClearIcon.FlatAppearance.BorderColor = _borderColor;
             btnClearIcon.Click += (s, e) => _txIconPath.Text = "";
             var iconPanel = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0) };
             iconPanel.Controls.Add(_txIconPath);
             iconPanel.Controls.Add(_btnIconBrowse);
             iconPanel.Controls.Add(btnClearIcon);
-            layout.Controls.Add(new Label { Text = "Custom tray icon:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = TextColor }, 0, 3);
+            layout.Controls.Add(new Label { Text = "Custom tray icon:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 3);
             layout.Controls.Add(iconPanel, 1, 3);
-            layout.Controls.Add(new Label { Text = "Tooltips:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = TextColor }, 0, 4);
+            layout.Controls.Add(new Label { Text = "Tooltips:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 4);
             layout.Controls.Add(_chkShowTooltips, 1, 4);
-            layout.Controls.Add(new Label { Text = "", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = TextColor }, 0, 5);
+            layout.Controls.Add(new Label { Text = "", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 5);
             layout.Controls.Add(_chkShowPayloadInTooltip, 1, 5);
 
             _chkShowTooltips.CheckedChanged += (s, e) => _chkShowPayloadInTooltip.Enabled = _chkShowTooltips.Checked;
 
-            _chkRoundedTrayIcon = new CheckBox { Text = "Rounded tray icon", AutoSize = true, ForeColor = TextColor };
-            layout.Controls.Add(new Label { Text = "Appearance:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = TextColor }, 0, 6);
+            _chkRoundedTrayIcon = new CheckBox { Text = "Rounded tray icon", AutoSize = true, ForeColor = _textColor };
+            layout.Controls.Add(new Label { Text = "Appearance:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 6);
             layout.Controls.Add(_chkRoundedTrayIcon, 1, 6);
 
-            _chkIconWhiteTransparent = new CheckBox { Text = "White\u2192Transparent (tray icon)", AutoSize = true, ForeColor = TextColor };
-            _chkIconBlackTransparent = new CheckBox { Text = "Black\u2192Transparent (tray icon)", AutoSize = true, ForeColor = TextColor };
+            _chkIconWhiteTransparent = new CheckBox { Text = "White\u2192Transparent (tray icon)", AutoSize = true, ForeColor = _textColor };
+            _chkIconBlackTransparent = new CheckBox { Text = "Black\u2192Transparent (tray icon)", AutoSize = true, ForeColor = _textColor };
             layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 7);
             layout.Controls.Add(_chkIconWhiteTransparent, 1, 7);
             layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 8);
@@ -359,49 +473,52 @@ namespace TaskbarMqtt.UI
                 ColumnCount = 2,
                 RowCount = 9,
                 Padding = new Padding(20, 20, 20, 8),
-                BackColor = CellBack
+                BackColor = _cellBack
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             for (int i = 0; i < 9; i++)
                 layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
 
-            _txHost = new TextBox { Width = 260, Anchor = AnchorStyles.Left, BackColor = InputBack, ForeColor = InputFore };
-            _txPort = new TextBox { Width = 70, Anchor = AnchorStyles.Left, BackColor = InputBack, ForeColor = InputFore };
-            _txUser = new TextBox { Width = 200, Anchor = AnchorStyles.Left, BackColor = InputBack, ForeColor = InputFore };
-            _txPass = new TextBox { Width = 200, Anchor = AnchorStyles.Left, UseSystemPasswordChar = true, BackColor = InputBack, ForeColor = InputFore };
-            _txClientId = new TextBox { Width = 260, Anchor = AnchorStyles.Left, Text = "TaskbarMqtt", BackColor = InputBack, ForeColor = InputFore };
-            _txKeepAlive = new TextBox { Width = 70, Anchor = AnchorStyles.Left, BackColor = InputBack, ForeColor = InputFore };
-            _chkTls = new CheckBox { Text = "Use TLS", AutoSize = true, ForeColor = TextColor };
-            _chkInvalidCerts = new CheckBox { Text = "Allow self-signed certificates", AutoSize = true, Checked = true, ForeColor = TextColor };
+            _txHost = new TextBox { Width = 260, Anchor = AnchorStyles.Left, BackColor = _inputBack, ForeColor = _inputFore };
+            _txPort = new TextBox { Width = 70, Anchor = AnchorStyles.Left, BackColor = _inputBack, ForeColor = _inputFore };
+            _txUser = new TextBox { Width = 200, Anchor = AnchorStyles.Left, BackColor = _inputBack, ForeColor = _inputFore };
+            _txPass = new TextBox { Width = 200, Anchor = AnchorStyles.Left, UseSystemPasswordChar = true, BackColor = _inputBack, ForeColor = _inputFore };
+            _txClientId = new TextBox { Width = 260, Anchor = AnchorStyles.Left, Text = "TaskbarMqtt", BackColor = _inputBack, ForeColor = _inputFore };
+            _txKeepAlive = new TextBox { Width = 70, Anchor = AnchorStyles.Left, BackColor = _inputBack, ForeColor = _inputFore };
+            _txConnectTimeout = new TextBox { Width = 70, Anchor = AnchorStyles.Left, BackColor = _inputBack, ForeColor = _inputFore };
+            _chkTls = new CheckBox { Text = "Use TLS", AutoSize = true, ForeColor = _textColor };
+            _chkInvalidCerts = new CheckBox { Text = "Allow self-signed certificates", AutoSize = true, Checked = true, ForeColor = _textColor };
 
             var tlsPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Margin = new Padding(0) };
             tlsPanel.Controls.Add(_chkTls);
             tlsPanel.Controls.Add(_chkInvalidCerts);
 
-            _btnTestConn = new Button { Text = "Test Connection", Width = 130, Height = 26, BackColor = BtnBack, ForeColor = BtnFore, FlatStyle = FlatStyle.Flat };
-            _btnTestConn.FlatAppearance.BorderColor = BorderColor;
+            _btnTestConn = new Button { Text = "Test Connection", Width = 130, Height = 26, BackColor = _btnBack, ForeColor = _btnFore, FlatStyle = FlatStyle.Flat };
+            _btnTestConn.FlatAppearance.BorderColor = _borderColor;
             _btnTestConn.Click += OnTestConnection;
-            _lblConnStatus = new Label { AutoSize = true, ForeColor = GrayText, Padding = new Padding(0, 5, 0, 0) };
+            _lblConnStatus = new Label { AutoSize = true, ForeColor = _grayText, Padding = new Padding(0, 5, 0, 0) };
 
-            layout.Controls.Add(new Label { Text = "Host:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = TextColor }, 0, 0);
+            layout.Controls.Add(new Label { Text = "Host:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = _textColor }, 0, 0);
             layout.Controls.Add(_txHost, 1, 0);
-            layout.Controls.Add(new Label { Text = "Port:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = TextColor }, 0, 1);
+            layout.Controls.Add(new Label { Text = "Port:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = _textColor }, 0, 1);
             layout.Controls.Add(_txPort, 1, 1);
-            layout.Controls.Add(new Label { Text = "Username:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = TextColor }, 0, 2);
+            layout.Controls.Add(new Label { Text = "Username:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = _textColor }, 0, 2);
             layout.Controls.Add(_txUser, 1, 2);
-            layout.Controls.Add(new Label { Text = "Password:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = TextColor }, 0, 3);
+            layout.Controls.Add(new Label { Text = "Password:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = _textColor }, 0, 3);
             layout.Controls.Add(_txPass, 1, 3);
-            layout.Controls.Add(new Label { Text = "Client ID:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = TextColor }, 0, 4);
+            layout.Controls.Add(new Label { Text = "Client ID:", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = _textColor }, 0, 4);
             layout.Controls.Add(_txClientId, 1, 4);
-            layout.Controls.Add(new Label { Text = "Keep alive (s):", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = TextColor }, 0, 5);
+            layout.Controls.Add(new Label { Text = "Keep alive (s):", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = _textColor }, 0, 5);
             layout.Controls.Add(_txKeepAlive, 1, 5);
-            layout.Controls.Add(new Label { Text = "Encryption (TLS/SSL):", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = TextColor }, 0, 6);
-            layout.Controls.Add(tlsPanel, 1, 6);
-            layout.Controls.Add(new Label { Text = "", Anchor = AnchorStyles.Left }, 0, 7);
-            layout.Controls.Add(_btnTestConn, 1, 7);
+            layout.Controls.Add(new Label { Text = "Connect timeout (s):", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = _textColor }, 0, 6);
+            layout.Controls.Add(_txConnectTimeout, 1, 6);
+            layout.Controls.Add(new Label { Text = "Encryption (TLS/SSL):", AutoSize = true, Anchor = AnchorStyles.Left, ForeColor = _textColor }, 0, 7);
+            layout.Controls.Add(tlsPanel, 1, 7);
             layout.Controls.Add(new Label { Text = "", Anchor = AnchorStyles.Left }, 0, 8);
-            layout.Controls.Add(_lblConnStatus, 1, 8);
+            layout.Controls.Add(_btnTestConn, 1, 8);
+            layout.Controls.Add(new Label { Text = "", Anchor = AnchorStyles.Left }, 0, 9);
+            layout.Controls.Add(_lblConnStatus, 1, 9);
 
             _tabPageBroker.Controls.Add(layout);
         }
@@ -415,15 +532,15 @@ namespace TaskbarMqtt.UI
                 WrapContents = false,
                 AutoScroll = true,
                 Padding = new Padding(12, 12, 12, 4),
-                BackColor = CellBack
+                BackColor = _cellBack
             };
             _btnPanel.Resize += (s, e) => UpdateRowWidths();
             ApplyDarkWindow(_btnPanel);
             _tabPageButtons.Controls.Add(_btnPanel);
 
-            var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = CellBack };
-            var btnAdd = new Button { Text = "+ Add Button", Width = 110, Height = 26, Left = 14, Top = 9, BackColor = BtnBack, ForeColor = BtnFore, FlatStyle = FlatStyle.Flat };
-            btnAdd.FlatAppearance.BorderColor = BorderColor;
+            var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 44, BackColor = _cellBack };
+            var btnAdd = new Button { Text = "+ Add Button", Width = 110, Height = 26, Left = 14, Top = 9, BackColor = _btnBack, ForeColor = _btnFore, FlatStyle = FlatStyle.Flat };
+            btnAdd.FlatAppearance.BorderColor = _borderColor;
             btnAdd.Click += OnAddButton;
             bottomPanel.Controls.Add(btnAdd);
             _tabPageButtons.Controls.Add(bottomPanel);
@@ -434,15 +551,15 @@ namespace TaskbarMqtt.UI
             var box = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = PageBack,
-                ForeColor = TextColor
+                BackColor = _pageBack,
+                ForeColor = _textColor
             };
 
             var lines = new[]
             {
                 "Taskbar MQTT FastSwitch",
                 "",
-                "Version 1.5",
+                "Version 1.6",
                 "",
                 "Created by MiniMax V3",
                 "Made working by OpenCode's Big Pickle",
@@ -463,7 +580,7 @@ namespace TaskbarMqtt.UI
                         Text = lines[i],
                         AutoSize = true,
                         TextAlign = ContentAlignment.TopCenter,
-                        ForeColor = TextColor,
+                        ForeColor = _textColor,
                         Font = i == 0 ? boldFont : regFont,
                         Padding = new Padding(0),
                         Margin = new Padding(0)
@@ -485,8 +602,8 @@ namespace TaskbarMqtt.UI
             for (int i = 0; i < _tabLabels.Count; i++)
             {
                 var sel = i == index;
-                _tabLabels[i].ForeColor = sel ? TextColor : GrayText;
-                _tabLabels[i].BackColor = sel ? CellBack : FormBack;
+                _tabLabels[i].ForeColor = sel ? _textColor : _grayText;
+                _tabLabels[i].BackColor = sel ? _cellBack : _formBack;
                 _tabLabels[i].Font = new Font("Segoe UI", 9F, sel ? FontStyle.Bold : FontStyle.Regular);
             }
             ShowPage(index);
@@ -500,14 +617,14 @@ namespace TaskbarMqtt.UI
             _tabPageAbout.Visible = index == 3;
         }
 
-        private static void ComboDrawItem(object sender, DrawItemEventArgs e)
+        private void ComboDrawItem(object sender, DrawItemEventArgs e)
         {
             if (e.Index < 0) return;
             var cb = (ComboBox)sender;
-            var back = (e.State & DrawItemState.Selected) != 0 ? HoverBack : InputBack;
+            var back = (e.State & DrawItemState.Selected) != 0 ? _hoverBack : _inputBack;
             using (var b = new SolidBrush(back))
                 e.Graphics.FillRectangle(b, e.Bounds);
-            TextRenderer.DrawText(e.Graphics, cb.Items[e.Index].ToString(), cb.Font, e.Bounds, InputFore,
+            TextRenderer.DrawText(e.Graphics, cb.Items[e.Index].ToString(), cb.Font, e.Bounds, _inputFore,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
             e.DrawFocusRectangle();
         }
@@ -533,7 +650,7 @@ namespace TaskbarMqtt.UI
 
         private void AddButtonRow()
         {
-            var row = new ButtonRow(_btnRows.Count, RemoveButtonRow);
+            var row = new ButtonRow(this, _btnRows.Count, RemoveButtonRow);
             _btnRows.Add(row);
             _btnPanel.Controls.Add(row);
             UpdateRowWidths();
@@ -587,6 +704,7 @@ namespace TaskbarMqtt.UI
             _txPass.Text = _draft.Broker.Password ?? "";
             _txClientId.Text = string.IsNullOrEmpty(_draft.Broker.ClientId) ? "TaskbarClient" : _draft.Broker.ClientId;
             _txKeepAlive.Text = _draft.Broker.KeepAliveSeconds.ToString();
+            _txConnectTimeout.Text = _draft.Broker.ConnectTimeoutSeconds.ToString();
             _txIconPath.Text = _draft.IconPath ?? "";
             _chkTls.Checked = _draft.Broker.UseTls;
             _chkInvalidCerts.Checked = _draft.Broker.AllowInvalidCerts;
@@ -597,7 +715,7 @@ namespace TaskbarMqtt.UI
             int count = Math.Max(1, _draft.Buttons.Count);
             for (int i = 0; i < count; i++)
             {
-                var row = new ButtonRow(i, RemoveButtonRow);
+                var row = new ButtonRow(this, i, RemoveButtonRow);
                 if (i < _draft.Buttons.Count)
                     row.Bind(_draft.Buttons[i]);
                 _btnPanel.Controls.Add(row);
@@ -639,6 +757,12 @@ namespace TaskbarMqtt.UI
             _draft.Broker.Password = _txPass.Text;
             _draft.Broker.ClientId = _txClientId.Text.Trim();
             _draft.Broker.KeepAliveSeconds = ka;
+            if (!int.TryParse(_txConnectTimeout.Text, out var ct) || ct <= 0)
+            {
+                MessageBox.Show("Connect timeout must be a positive number.", "Invalid Value", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            _draft.Broker.ConnectTimeoutSeconds = ct;
             _draft.Broker.UseTls = _chkTls.Checked;
             _draft.Broker.AllowInvalidCerts = _chkInvalidCerts.Checked;
 
@@ -712,6 +836,7 @@ namespace TaskbarMqtt.UI
         // -------- Button row --------
         private class ButtonRow : UserControl
         {
+            private readonly SettingsForm _parent;
             private int _index;
             private TextBox _label, _topic, _payload, _iconPath;
             private ComboBox _qos;
@@ -724,11 +849,9 @@ namespace TaskbarMqtt.UI
             private readonly ToolTip _tooltip;
             private readonly Action<ButtonRow> _removeAction;
 
-            private static readonly Color HeaderBg = SettingsForm.HeaderBack;
-            private static readonly Color RowBack = SettingsForm.CellBack;
-
-            public ButtonRow(int index, Action<ButtonRow> removeAction)
+            public ButtonRow(SettingsForm parent, int index, Action<ButtonRow> removeAction)
             {
+                _parent = parent;
                 _index = index;
                 _removeAction = removeAction;
                 _tooltip = new ToolTip();
@@ -739,13 +862,13 @@ namespace TaskbarMqtt.UI
             private void Build()
             {
                 BorderStyle = BorderStyle.None;
-                BackColor = RowBack;
-                ForeColor = SettingsForm.TextColor;
-                Margin = new Padding(0, 0, 0, 8);
+                BackColor = _parent._cellBack;
+                var margin = 6;
 
                 _header = new Panel
                 {
-                    BackColor = HeaderBg
+                    Height = 28,
+                    BackColor = _parent._headerBack
                 };
 
                 _headerLbl = new Label
@@ -753,7 +876,7 @@ namespace TaskbarMqtt.UI
                     Text = "Button " + (_index + 1),
                     Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                     AutoSize = true,
-                    ForeColor = SettingsForm.TextColor
+                    ForeColor = _parent._textColor
                 };
                 _header.Controls.Add(_headerLbl);
 
@@ -764,10 +887,10 @@ namespace TaskbarMqtt.UI
                     Height = 22,
                     FlatStyle = FlatStyle.Flat,
                     TabStop = false,
-                    ForeColor = SettingsForm.GrayText
+                    ForeColor = _parent._grayText
                 };
                 _removeBtn.FlatAppearance.BorderSize = 0;
-                _removeBtn.FlatAppearance.MouseOverBackColor = SettingsForm.HoverBack;
+                _removeBtn.FlatAppearance.MouseOverBackColor = _parent._hoverBack;
                 _removeBtn.Click += (s, e) => _removeAction?.Invoke(this);
                 _header.Controls.Add(_removeBtn);
                 Controls.Add(_header);
@@ -777,38 +900,38 @@ namespace TaskbarMqtt.UI
                     Width = 44,
                     Height = 44,
                     SizeMode = PictureBoxSizeMode.Zoom,
-                    BackColor = RowBack,
+                    BackColor = _parent._cellBack,
                     BorderStyle = BorderStyle.FixedSingle
                 };
                 Controls.Add(_iconPreview);
 
-                _lblDesc = new Label { Text = "Description:", AutoSize = true, ForeColor = SettingsForm.TextColor };
-                _lblTopic = new Label { Text = "Topic:", AutoSize = true, ForeColor = SettingsForm.TextColor };
-                _lblQos = new Label { Text = "QoS:", AutoSize = true, ForeColor = SettingsForm.TextColor };
-                _lblPayload = new Label { Text = "Payload:", AutoSize = true, ForeColor = SettingsForm.TextColor };
-                _lblIcon = new Label { Text = "Icon (ICO / PNG / JPG / BMP):", AutoSize = true, ForeColor = SettingsForm.TextColor };
+                _lblDesc = new Label { Text = "Description:", AutoSize = true, ForeColor = _parent._textColor };
+                _lblTopic = new Label { Text = "Topic:", AutoSize = true, ForeColor = _parent._textColor };
+                _lblQos = new Label { Text = "QoS:", AutoSize = true, ForeColor = _parent._textColor };
+                _lblPayload = new Label { Text = "Payload:", AutoSize = true, ForeColor = _parent._textColor };
+                _lblIcon = new Label { Text = "Icon (ICO / PNG / JPG / BMP):", AutoSize = true, ForeColor = _parent._textColor };
 
-                _label = new TextBox { Height = 22, BackColor = SettingsForm.InputBack, ForeColor = SettingsForm.InputFore };
-                _topic = new TextBox { Height = 22, BackColor = SettingsForm.InputBack, ForeColor = SettingsForm.InputFore };
-                _qos = new ComboBox { Height = 22, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = SettingsForm.InputBack, ForeColor = SettingsForm.InputFore, DrawMode = DrawMode.OwnerDrawFixed };
-                _qos.DrawItem += SettingsForm.ComboDrawItem;
-                SettingsForm.ApplyDarkWindow(_qos);
+                _label = new TextBox { Height = 22, BackColor = _parent._inputBack, ForeColor = _parent._inputFore };
+                _topic = new TextBox { Height = 22, BackColor = _parent._inputBack, ForeColor = _parent._inputFore };
+                _qos = new ComboBox { Height = 22, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = _parent._inputBack, ForeColor = _parent._inputFore, DrawMode = DrawMode.OwnerDrawFixed };
+                _qos.DrawItem += _parent.ComboDrawItem;
+                _parent.ApplyDarkWindow(_qos);
                 _qos.Items.AddRange(new object[] { "0", "1", "2" });
                 _qos.SelectedIndex = 0;
 
-                _payload = new TextBox { Height = 22, BackColor = SettingsForm.InputBack, ForeColor = SettingsForm.InputFore };
-                _retain = new CheckBox { Text = "Retain", AutoSize = true, ForeColor = SettingsForm.TextColor };
+                _payload = new TextBox { Height = 22, BackColor = _parent._inputBack, ForeColor = _parent._inputFore };
+                _retain = new CheckBox { Text = "Retain", AutoSize = true, ForeColor = _parent._textColor };
 
-                _iconPath = new TextBox { Height = 22, ReadOnly = true, BackColor = SettingsForm.InputBack, ForeColor = SettingsForm.InputFore };
-                _browseBtn = new Button { Text = "Browse\u2026", Height = 23, BackColor = SettingsForm.BtnBack, ForeColor = SettingsForm.BtnFore, FlatStyle = FlatStyle.Flat };
-                _browseBtn.FlatAppearance.BorderColor = SettingsForm.BorderColor;
+                _iconPath = new TextBox { Height = 22, ReadOnly = true, BackColor = _parent._inputBack, ForeColor = _parent._inputFore };
+                _browseBtn = new Button { Text = "Browse\u2026", Height = 23, BackColor = _parent._btnBack, ForeColor = _parent._btnFore, FlatStyle = FlatStyle.Flat };
+                _browseBtn.FlatAppearance.BorderColor = _parent._borderColor;
                 _browseBtn.Click += OnBrowse;
-                _clearBtn = new Button { Text = "Clear", Height = 23, BackColor = SettingsForm.BtnBack, ForeColor = SettingsForm.BtnFore, FlatStyle = FlatStyle.Flat };
-                _clearBtn.FlatAppearance.BorderColor = SettingsForm.BorderColor;
+                _clearBtn = new Button { Text = "Clear", Height = 23, BackColor = _parent._btnBack, ForeColor = _parent._btnFore, FlatStyle = FlatStyle.Flat };
+                _clearBtn.FlatAppearance.BorderColor = _parent._borderColor;
                 _clearBtn.Click += (s, e) => { _iconPath.Text = ""; _iconPreview.Image = null; };
 
-                _chkWhiteTransparent = new CheckBox { Text = "White\u2192Transparent", AutoSize = true, ForeColor = SettingsForm.TextColor };
-                _chkBlackTransparent = new CheckBox { Text = "Black\u2192Transparent", AutoSize = true, ForeColor = SettingsForm.TextColor };
+                _chkWhiteTransparent = new CheckBox { Text = "White\u2192Transparent", AutoSize = true, ForeColor = _parent._textColor };
+                _chkBlackTransparent = new CheckBox { Text = "Black\u2192Transparent", AutoSize = true, ForeColor = _parent._textColor };
 
                 Controls.AddRange(new Control[] {
                     _lblDesc, _lblTopic, _lblQos, _lblPayload, _lblIcon,

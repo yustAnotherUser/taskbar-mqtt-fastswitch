@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Win32;
 using TaskbarMqtt.Config;
 using TaskbarMqtt.Mqtt;
 using TaskbarMqtt.UI;
@@ -55,6 +56,14 @@ namespace TaskbarMqtt.App
             _mqtt.StatusChanged += msg => { /* could update tooltip */ };
 
             BuildContextMenu();
+            SystemEvents.UserPreferenceChanged += (s, e) =>
+            {
+                if (e.Category == UserPreferenceCategory.General)
+                {
+                    BuildContextMenu();
+                    if (_trayIcon != null) _trayIcon.ContextMenuStrip = _contextMenu;
+                }
+            };
             BuildTray();
 
             _mqtt.UpdateConfig(_config.Broker);
