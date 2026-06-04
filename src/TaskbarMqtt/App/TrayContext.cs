@@ -18,13 +18,14 @@ namespace TaskbarMqtt.App
         private readonly MqttService _mqtt;
 
         private NotifyIcon _trayIcon;
-        private List<NotifyIcon> _multiIcons;
+        private NativeNotifyIconManager _nativeIcons;
         private PopupForm _popup;
         private ContextMenuStrip _contextMenu;
 
         private readonly Icon _appIcon;
         private readonly Icon _defaultButtonIcon;
         private readonly Bitmap _defaultButtonBitmap;
+        private readonly Bitmap _mqttIcon;
 
         private readonly Form _marshalForm;
 
@@ -46,6 +47,9 @@ namespace TaskbarMqtt.App
             _appIcon = LoadResourceIcon("app.ico");
             _defaultButtonIcon = LoadResourceIcon("button-default.ico");
             _defaultButtonBitmap = _defaultButtonIcon != null ? _defaultButtonIcon.ToBitmap() : null;
+            _mqttIcon = LoadResourceBitmap("mqtt-icon.png");
+
+            _ = _marshalForm.Handle;
 
             _mqtt = new MqttService();
             _mqtt.Error += msg => ShowBalloon("MQTT", msg, ToolTipIcon.Error);
@@ -71,7 +75,24 @@ namespace TaskbarMqtt.App
             return _appIcon ?? SystemIcons.Application;
         }
 
-        // ----- Resource icon loading -----
+        // ----- Resource image loading -----
+        private static Bitmap LoadResourceBitmap(string fileName)
+        {
+            try
+            {
+                var asm = Assembly.GetExecutingAssembly();
+                var resName = asm.GetManifestResourceNames()
+                    .FirstOrDefault(n => n.EndsWith("." + fileName, StringComparison.OrdinalIgnoreCase));
+                if (resName == null) return null;
+                using (var s = asm.GetManifestResourceStream(resName))
+                {
+                    if (s == null) return null;
+                    return new Bitmap(s);
+                }
+            }
+            catch { return null; }
+        }
+
         private static Icon LoadResourceIcon(string fileName)
         {
             try
@@ -183,27 +204,20 @@ namespace TaskbarMqtt.App
 
         private void BuildMultiIconTray()
         {
-            _multiIcons = new List<NotifyIcon>();
+            _nativeIcons = new NativeNotifyIconManager();
+            _nativeIcons.IconLeftClick += (idx) => PublishButton((int)idx);
+            _nativeIcons.IconRightClick += (idx) =>
+            {
+                _contextMenu.Show(Cursor.Position);
+            };
+
             for (int i = _config.Buttons.Count - 1; i >= 0; i--)
             {
-                int captured = i;
-                var ni = new NotifyIcon
-                {
-                    Icon = IconForButton(captured, 16) ?? SystemIcons.Application,
-                    Text = TooltipFor(captured),
-                    Visible = true,
-                    ContextMenuStrip = _contextMenu
-                };
-                ni.MouseClick += (s, e) =>
-                {
-                    if (e.Button == MouseButtons.Left)
-                    {
-                        PublishButton(captured);
-                    }
-                };
-                _multiIcons.Add(ni);
+                int index = i;
+                var icon = IconForButton(index, 16) ?? SystemIcons.Application;
+                var tip = TooltipFor(index);
+                _nativeIcons.Add((uint)index, Guid.NewGuid(), icon, tip);
             }
-            _multiIcons.Reverse();
         }
 
         private void DisposeTray()
@@ -215,14 +229,10 @@ namespace TaskbarMqtt.App
                 _trayIcon.Dispose();
                 _trayIcon = null;
             }
-            if (_multiIcons != null)
+            if (_nativeIcons != null)
             {
-                foreach (var ni in _multiIcons)
-                {
-                    ni.Visible = false;
-                    ni.Dispose();
-                }
-                _multiIcons = null;
+                _nativeIcons.Dispose();
+                _nativeIcons = null;
             }
         }
 
@@ -248,7 +258,7 @@ namespace TaskbarMqtt.App
             HidePopup();
             if (_popup == null || _popup.IsDisposed)
             {
-                _popup = new PopupForm(_config.Buttons, GetButtonImage, PublishButton, _config.PopupSizePercent);
+                _popup = new PopupForm(_config.Buttons, GetButtonImage, PublishButton, _mqttIcon, _config.PopupSizePercent);
             }
             _popup.ShowAtCursor();
         }
@@ -306,12 +316,9 @@ namespace TaskbarMqtt.App
                     _trayIcon.BalloonTipIcon = icon;
                     _trayIcon.ShowBalloonTip(3500);
                 }
-                else if (_multiIcons != null && _multiIcons.Count > 0)
+                else if (_nativeIcons != null)
                 {
-                    _multiIcons[0].BalloonTipTitle = title;
-                    _multiIcons[0].BalloonTipText = text;
-                    _multiIcons[0].BalloonTipIcon = icon;
-                    _multiIcons[0].ShowBalloonTip(3500);
+                    _nativeIcons.ShowBalloon(0, title, text, icon);
                 }
             }
             catch { }

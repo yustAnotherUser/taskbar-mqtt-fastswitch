@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using TaskbarMqtt.App;
@@ -26,6 +27,7 @@ namespace TaskbarMqtt.UI
         private ComboBox _cbPopupSize;
         private TextBox _txIconPath;
         private Button _btnIconBrowse;
+
 
         // Broker
         private TextBox _txHost, _txPort, _txUser, _txPass, _txClientId, _txKeepAlive;
@@ -67,6 +69,17 @@ namespace TaskbarMqtt.UI
             ShowInTaskbar = true;
             Font = new Font("Segoe UI", 9F);
             BackColor = PanelBg;
+
+            try
+            {
+                var asm = Assembly.GetExecutingAssembly();
+                var resName = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(".app.ico", StringComparison.OrdinalIgnoreCase));
+                if (resName != null)
+                    using (var s = asm.GetManifestResourceStream(resName))
+                        if (s != null)
+                            Icon = new Icon(s);
+            }
+            catch { }
 
             _tabs = new TabControl { Dock = DockStyle.Fill };
             _tabGeneral = new TabPage("General");
@@ -111,12 +124,13 @@ namespace TaskbarMqtt.UI
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 3,
+                RowCount = 5,
                 Padding = new Padding(20, 20, 20, 8),
                 BackColor = Color.White
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -251,9 +265,10 @@ namespace TaskbarMqtt.UI
             {
                 "Taskbar MQTT FastSwitch",
                 "",
-                "Version 1.1",
+                "Version 1.3",
                 "",
                 "Created by MiniMax V3",
+                "It crashed on left and right click",
                 "Made working by OpenCode's Big Pickle",
                 "Supervised by yustAnotherUser",
                 "",
@@ -261,7 +276,7 @@ namespace TaskbarMqtt.UI
                 "pre-configured MQTT messages at the click of a button.",
             };
 
-            int y = 24;
+            int y = 10;
             using (var boldFont = new Font("Segoe UI", 12F, FontStyle.Bold))
             using (var regFont = new Font("Segoe UI", 9F))
             {
@@ -271,11 +286,15 @@ namespace TaskbarMqtt.UI
                     {
                         Text = lines[i],
                         AutoSize = true,
-                        Location = new Point(24, y),
-                        Font = i == 0 ? boldFont : regFont
+                        TextAlign = ContentAlignment.TopCenter,
+                        Font = i == 0 ? boldFont : regFont,
+                        Padding = new Padding(0),
+                        Margin = new Padding(0)
                     };
+                    lbl.Location = new Point((box.Width - lbl.Width) / 2, y);
                     box.Controls.Add(lbl);
-                    y += lbl.Height + (i == 0 ? 6 : 2);
+                    var h = string.IsNullOrEmpty(lines[i]) ? 6 : lbl.Height;
+                    y += h + (i == 0 ? 6 : 2);
                 }
             }
 

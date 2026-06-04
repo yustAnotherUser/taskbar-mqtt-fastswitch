@@ -13,6 +13,7 @@ namespace TaskbarMqtt.UI
         private readonly List<ButtonConfig> _buttons;
         private readonly Action<int> _onClick;
         private readonly Func<int, Image> _imageFor;
+        private readonly Bitmap _mqttIcon;
         private FlowLayoutPanel _flow;
         private Timer _closeTimer;
         private readonly ToolTip _tooltip;
@@ -56,11 +57,12 @@ namespace TaskbarMqtt.UI
         [DllImport("user32.dll")]
         private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
 
-        public PopupForm(List<ButtonConfig> buttons, Func<int, Image> imageFor, Action<int> onClick, int popupSizePercent = 100)
+        public PopupForm(List<ButtonConfig> buttons, Func<int, Image> imageFor, Action<int> onClick, Bitmap mqttIcon, int popupSizePercent = 100)
         {
             _buttons = buttons;
             _imageFor = imageFor;
             _onClick = onClick;
+            _mqttIcon = mqttIcon;
             _tooltip = new ToolTip();
             _scale = Math.Max(0.25, Math.Min(2.0, popupSizePercent / 100.0));
             _buttonSize = (int)Math.Round(BaseButtonSize * _scale);
@@ -174,6 +176,11 @@ namespace TaskbarMqtt.UI
                         b.Image = ScaleImage(img, _buttonSize - imgInset, _buttonSize - imgInset);
                         b.Text = "";
                     }
+                    else if (_mqttIcon != null)
+                    {
+                        b.BackgroundImage = MakeWatermark(_mqttIcon, _buttonSize);
+                        b.BackgroundImageLayout = ImageLayout.Center;
+                    }
                 }
                 catch { }
 
@@ -190,6 +197,23 @@ namespace TaskbarMqtt.UI
 
                 _flow.Controls.Add(b);
             }
+        }
+
+        private static Bitmap MakeWatermark(Bitmap src, int size)
+        {
+            var bmp = new Bitmap(size, size);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(src, 0, 0, size, size);
+            }
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    var c = bmp.GetPixel(x, y);
+                    bmp.SetPixel(x, y, Color.FromArgb((int)(c.A * 0.3f), c.R, c.G, c.B));
+                }
+            return bmp;
         }
 
         private static Image ScaleImage(Image src, int maxW, int maxH)

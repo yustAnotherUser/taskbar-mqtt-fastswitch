@@ -7,34 +7,15 @@ function New-IconFromBitmap([System.Drawing.Bitmap]$bmp, [string]$path) {
 }
 
 function New-AppIcon([int]$size, [string]$path) {
+    $src = [System.Drawing.Image]::FromFile((Join-Path $PSScriptRoot 'src\TaskbarMqtt\Assets\mqtt-icon.png'))
     $bmp = New-Object System.Drawing.Bitmap $size, $size
     $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-    $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.Clear([System.Drawing.Color]::Transparent)
-
-    # Filled rounded square (MQTT purple)
-    $rect = New-Object System.Drawing.Rectangle 1, 1, ($size - 2), ($size - 2)
-    $path1 = New-Object System.Drawing.Drawing2D.GraphicsPath
-    $radius = [Math]::Max(2, [int]($size / 6))
-    $d = $radius * 2
-    $path1.AddArc($rect.X, $rect.Y, $d, $d, 180, 90)
-    $path1.AddArc($rect.Right - $d, $rect.Y, $d, $d, 270, 90)
-    $path1.AddArc($rect.Right - $d, $rect.Bottom - $d, $d, $d, 0, 90)
-    $path1.AddArc($rect.X, $rect.Bottom - $d, $d, $d, 90, 90)
-    $path1.CloseFigure()
-    $g.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(123, 31, 162))), $path1)
-
-    # White "M" letter (larger, centered)
-    $fontSize = [Math]::Max(7, [int]($size * 0.70))
-    $font = New-Object System.Drawing.Font 'Arial Black', $fontSize, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
-    $sf = New-Object System.Drawing.StringFormat
-    $sf.Alignment = [System.Drawing.StringAlignment]::Center
-    $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
-    $textRect = New-Object System.Drawing.RectangleF 0, 0, $size, $size
-    $g.DrawString('M', $font, [System.Drawing.Brushes]::White, $textRect, $sf)
-
+    $g.DrawImage($src, 0, 0, $size, $size)
     $g.Dispose()
+    $src.Dispose()
     New-IconFromBitmap $bmp $path
     $bmp.Dispose()
 }
