@@ -47,7 +47,7 @@ Buttons are added and removed dynamically in the Buttons tab using the **+ Add B
 
 ## Config file format
 
-`config.json` is created on first launch and re-written on every **Apply** / **OK** in Settings. It lives next to `TaskbarMqtt.exe`.
+`config.json` is created on first launch and re-written on every **Apply** / **OK** in Settings. It lives next to `TaskbarMqtt.exe` (portable mode). When installed in `Program Files`, the app falls back to `%LOCALAPPDATA%\TaskbarMqtt\config.json` because the install directory is read-only.
 
 ```json
 {

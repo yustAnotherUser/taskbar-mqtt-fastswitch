@@ -11,7 +11,18 @@ namespace TaskbarMqtt.Config
             get
             {
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                return Path.Combine(baseDir, "config.json");
+                var local = Path.Combine(baseDir, "config.json");
+                try
+                {
+                    var probe = Path.Combine(baseDir, Path.GetRandomFileName());
+                    using (var s = File.Create(probe)) { }
+                    File.Delete(probe);
+                    return local;
+                }
+                catch { }
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "TaskbarMqtt", "config.json");
             }
         }
 
