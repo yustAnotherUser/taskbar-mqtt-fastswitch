@@ -641,7 +641,7 @@ namespace TaskbarMqtt.UI
             {
                 "Taskbar MQTT FastSwitch",
                 "",
-                "Version 1.8",
+                "Version 1.8.1",
                 "",
                 "Created by MiniMax V3",
                 "Made working by OpenCode's Big Pickle",

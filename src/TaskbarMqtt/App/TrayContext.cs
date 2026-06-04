@@ -213,7 +213,7 @@ namespace TaskbarMqtt.App
                     using (var bmp = LoadAlphaBitmap(path))
                     {
                         ApplyTransparency(bmp, _config.Buttons[index]);
-                        using (var resized = new Bitmap(bmp, size, size))
+                        using (var resized = ResizeIconForDisplay(bmp, size, _config.Buttons[index].StretchImage))
                         {
                             if (_config.RoundedTrayIcon)
                             {

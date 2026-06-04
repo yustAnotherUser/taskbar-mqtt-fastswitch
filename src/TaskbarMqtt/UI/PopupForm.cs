@@ -180,7 +180,16 @@ namespace TaskbarMqtt.UI
                     var img = _imageFor?.Invoke(idx);
                     if (img != null)
                     {
-                        var scaled = ScaleImage(img, _buttonSize - imgInset, _buttonSize - imgInset);
+                        var avail = _buttonSize - imgInset;
+                        Image scaled;
+                        if (cfg.StretchImage)
+                        {
+                            scaled = new Bitmap(img, avail, avail);
+                        }
+                        else
+                        {
+                            scaled = ScaleImage(img, avail, avail);
+                        }
                         b.Image = RoundImageCorners(scaled, Math.Max(2, (int)Math.Round(6 * _scale)));
                         b.Text = "";
                         img.Dispose();
