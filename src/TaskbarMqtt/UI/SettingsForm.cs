@@ -34,6 +34,8 @@ namespace TaskbarMqtt.UI
         private ComboBox _cbPopupSize;
         private TextBox _txIconPath;
         private Button _btnIconBrowse;
+        private PictureBox _iconTrayPreview;
+        private CheckBox _chkStretchIcon;
 
         // Broker
         private TextBox _txHost, _txPort, _txUser, _txPass, _txClientId, _txKeepAlive, _txConnectTimeout;
@@ -44,6 +46,7 @@ namespace TaskbarMqtt.UI
         // Buttons
         private FlowLayoutPanel _btnPanel;
         private List<ButtonRow> _btnRows = new List<ButtonRow>();
+        private Image _defaultButtonIcon;
 
         private bool _isDarkMode;
         private Color _formBack, _pageBack, _cellBack, _headerBack, _textColor, _grayText, _borderColor, _hoverBack;
@@ -197,6 +200,35 @@ namespace TaskbarMqtt.UI
                 }
         }
 
+        private static Bitmap LoadDefaultButtonIcon()
+        {
+            try
+            {
+                var asm = Assembly.GetExecutingAssembly();
+                var resName = asm.GetManifestResourceNames()
+                    .FirstOrDefault(n => n.EndsWith(".mqtt-icon.png", StringComparison.OrdinalIgnoreCase));
+                if (resName == null) return null;
+                using (var s = asm.GetManifestResourceStream(resName))
+                {
+                    if (s == null) return null;
+                    using (var src = new Bitmap(s))
+                    {
+                        var bmp = new Bitmap(src.Width, src.Height, PixelFormat.Format32bppArgb);
+                        using (var g = Graphics.FromImage(bmp))
+                        using (var attr = new ImageAttributes())
+                        {
+                            var matrix = new ColorMatrix { Matrix33 = 0.25f };
+                            attr.SetColorMatrix(matrix);
+                            g.DrawImage(src, new Rectangle(0, 0, src.Width, src.Height),
+                                0, 0, src.Width, src.Height, GraphicsUnit.Pixel, attr);
+                        }
+                        return bmp;
+                    }
+                }
+            }
+            catch { return null; }
+        }
+
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
@@ -227,6 +259,8 @@ namespace TaskbarMqtt.UI
             _onApply = onApply;
 
             ReloadTheme();
+            if (_defaultButtonIcon == null)
+                _defaultButtonIcon = LoadDefaultButtonIcon();
             BuildUi();
             PopulateFromDraft();
 
@@ -294,7 +328,7 @@ namespace TaskbarMqtt.UI
                     using (var alpha = ToAlpha(raw))
                     {
                         ApplyTransparency(alpha, makeWhite, makeBlack);
-                        using (var resized = new Bitmap(alpha, 16, 16))
+                        using (var resized = TrayContext.ResizeIconForDisplay(alpha, 16, _draft.StretchIcon))
                         {
                             if (round)
                                 using (var rounded = RoundBitmap(resized, 3))
@@ -433,13 +467,26 @@ namespace TaskbarMqtt.UI
             _btnIconBrowse.Click += OnIconBrowse;
             var btnClearIcon = new Button { Text = "Clear", Width = 55, Height = 23, Margin = new Padding(4, 0, 0, 0), BackColor = _btnBack, ForeColor = _btnFore, FlatStyle = FlatStyle.Flat };
             btnClearIcon.FlatAppearance.BorderColor = _borderColor;
-            btnClearIcon.Click += (s, e) => _txIconPath.Text = "";
+            btnClearIcon.Click += (s, e) => { _txIconPath.Text = ""; _iconTrayPreview.Image = _defaultButtonIcon ?? new Bitmap(1, 1); _iconTrayPreview.SizeMode = PictureBoxSizeMode.Zoom; };
             var iconPanel = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0) };
             iconPanel.Controls.Add(_txIconPath);
             iconPanel.Controls.Add(_btnIconBrowse);
             iconPanel.Controls.Add(btnClearIcon);
+
+            _iconTrayPreview = new PictureBox { Width = 44, Height = 44, SizeMode = PictureBoxSizeMode.Zoom, BackColor = _cellBack, BorderStyle = BorderStyle.FixedSingle };
+            _chkStretchIcon = new CheckBox { Text = "Stretch image", AutoSize = true, ForeColor = _textColor };
+            _chkStretchIcon.CheckedChanged += (s, e) =>
+            {
+                if (_iconTrayPreview.Image != null && _iconTrayPreview.Image != (_defaultButtonIcon ?? new Bitmap(1, 1)))
+                    _iconTrayPreview.SizeMode = _chkStretchIcon.Checked ? PictureBoxSizeMode.StretchImage : PictureBoxSizeMode.Zoom;
+            };
+
+            var iconRow = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0) };
+            iconRow.Controls.Add(_iconTrayPreview);
+            iconRow.Controls.Add(iconPanel);
+
             layout.Controls.Add(new Label { Text = "Custom tray icon:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 3);
-            layout.Controls.Add(iconPanel, 1, 3);
+            layout.Controls.Add(iconRow, 1, 3);
             layout.Controls.Add(new Label { Text = "Tooltips:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 4);
             layout.Controls.Add(_chkShowTooltips, 1, 4);
             layout.Controls.Add(new Label { Text = "", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 5);
@@ -453,15 +500,37 @@ namespace TaskbarMqtt.UI
             layout.Controls.Add(new Label { Text = "Appearance:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 7);
             layout.Controls.Add(_chkRoundedTrayIcon, 1, 7);
 
+            layout.Controls.Add(new Label { Text = "Stretch:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 8);
+            layout.Controls.Add(_chkStretchIcon, 1, 8);
+
             _chkIconWhiteTransparent = new CheckBox { Text = "White\u2192Transparent (tray icon)", AutoSize = true, ForeColor = _textColor };
             _chkIconBlackTransparent = new CheckBox { Text = "Black\u2192Transparent (tray icon)", AutoSize = true, ForeColor = _textColor };
-            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 8);
-            layout.Controls.Add(_chkIconWhiteTransparent, 1, 8);
-
             layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 9);
-            layout.Controls.Add(_chkIconBlackTransparent, 1, 9);
+            layout.Controls.Add(_chkIconWhiteTransparent, 1, 9);
+
+            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 10);
+            layout.Controls.Add(_chkIconBlackTransparent, 1, 10);
 
             _tabPageGeneral.Controls.Add(layout);
+        }
+
+        private void SetTrayIconPreview(string path)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    using (var bmp = new Bitmap(path))
+                    {
+                        _iconTrayPreview.Image = new Bitmap(bmp);
+                        _iconTrayPreview.SizeMode = _chkStretchIcon.Checked ? PictureBoxSizeMode.StretchImage : PictureBoxSizeMode.Zoom;
+                    }
+                    return;
+                }
+            }
+            catch { }
+            _iconTrayPreview.Image = _defaultButtonIcon ?? new Bitmap(1, 1);
+            _iconTrayPreview.SizeMode = PictureBoxSizeMode.Zoom;
         }
 
         private void OnIconBrowse(object sender, EventArgs e)
@@ -469,7 +538,10 @@ namespace TaskbarMqtt.UI
             using (var dlg = new OpenFileDialog { Filter = "Icon files|*.ico;*.png;*.jpg;*.jpeg;*.bmp", Title = "Select custom tray icon" })
             {
                 if (dlg.ShowDialog() == DialogResult.OK)
+                {
                     _txIconPath.Text = dlg.FileName;
+                    SetTrayIconPreview(dlg.FileName);
+                }
             }
         }
 
@@ -533,6 +605,8 @@ namespace TaskbarMqtt.UI
 
         private void BuildButtonsTab()
         {
+            if (_defaultButtonIcon == null)
+                _defaultButtonIcon = LoadDefaultButtonIcon();
             _btnPanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -567,7 +641,7 @@ namespace TaskbarMqtt.UI
             {
                 "Taskbar MQTT FastSwitch",
                 "",
-                "Version 1.7",
+                "Version 1.8",
                 "",
                 "Created by MiniMax V3",
                 "Made working by OpenCode's Big Pickle",
@@ -658,7 +732,7 @@ namespace TaskbarMqtt.UI
 
         private void AddButtonRow()
         {
-            var row = new ButtonRow(this, _btnRows.Count, RemoveButtonRow);
+            var row = new ButtonRow(this, _btnRows.Count, RemoveButtonRow, _defaultButtonIcon);
             _btnRows.Add(row);
             _btnPanel.Controls.Add(row);
             UpdateRowWidths();
@@ -715,6 +789,8 @@ namespace TaskbarMqtt.UI
             _txKeepAlive.Text = _draft.Broker.KeepAliveSeconds.ToString();
             _txConnectTimeout.Text = _draft.Broker.ConnectTimeoutSeconds.ToString();
             _txIconPath.Text = _draft.IconPath ?? "";
+            _chkStretchIcon.Checked = _draft.StretchIcon;
+            SetTrayIconPreview(_draft.IconPath);
             _chkTls.Checked = _draft.Broker.UseTls;
             _chkInvalidCerts.Checked = _draft.Broker.AllowInvalidCerts;
 
@@ -724,7 +800,7 @@ namespace TaskbarMqtt.UI
             int count = Math.Max(1, _draft.Buttons.Count);
             for (int i = 0; i < count; i++)
             {
-                var row = new ButtonRow(this, i, RemoveButtonRow);
+                var row = new ButtonRow(this, i, RemoveButtonRow, _defaultButtonIcon);
                 if (i < _draft.Buttons.Count)
                     row.Bind(_draft.Buttons[i]);
                 _btnPanel.Controls.Add(row);
@@ -744,6 +820,7 @@ namespace TaskbarMqtt.UI
             _draft.ShowPayloadInTooltip = _chkShowPayloadInTooltip.Checked;
             _draft.PopupStaysOpen = _chkPopupStayOpen.Checked;
             _draft.IconPath = _txIconPath.Text.Trim();
+            _draft.StretchIcon = _chkStretchIcon.Checked;
             _draft.RoundedTrayIcon = _chkRoundedTrayIcon.Checked;
             _draft.MakeWhiteTransparent = _chkIconWhiteTransparent.Checked;
             _draft.MakeBlackTransparent = _chkIconBlackTransparent.Checked;
@@ -858,12 +935,24 @@ namespace TaskbarMqtt.UI
             private Panel _header;
             private readonly ToolTip _tooltip;
             private readonly Action<ButtonRow> _removeAction;
+            private readonly Image _defaultIcon;
+            private const int IconSize = 44;
+            private CheckBox _chkStretch;
 
-            public ButtonRow(SettingsForm parent, int index, Action<ButtonRow> removeAction)
+            private void SetPreviewImage(Image src)
+            {
+                if (src == null) { _iconPreview.Image = _defaultIcon; return; }
+                using (var copy = new Bitmap(src))
+                    _iconPreview.Image = new Bitmap(copy);
+                _iconPreview.SizeMode = _chkStretch.Checked ? PictureBoxSizeMode.StretchImage : PictureBoxSizeMode.Zoom;
+            }
+
+            public ButtonRow(SettingsForm parent, int index, Action<ButtonRow> removeAction, Image defaultIcon)
             {
                 _parent = parent;
                 _index = index;
                 _removeAction = removeAction;
+                _defaultIcon = defaultIcon;
                 _tooltip = new ToolTip();
                 Height = 175;
                 Build();
@@ -873,7 +962,6 @@ namespace TaskbarMqtt.UI
             {
                 BorderStyle = BorderStyle.None;
                 BackColor = _parent._cellBack;
-                var margin = 6;
 
                 _header = new Panel
                 {
@@ -907,13 +995,21 @@ namespace TaskbarMqtt.UI
 
                 _iconPreview = new PictureBox
                 {
-                    Width = 44,
-                    Height = 44,
+                    Width = IconSize,
+                    Height = IconSize,
                     SizeMode = PictureBoxSizeMode.Zoom,
                     BackColor = _parent._cellBack,
-                    BorderStyle = BorderStyle.FixedSingle
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Image = _defaultIcon
                 };
                 Controls.Add(_iconPreview);
+
+                _chkStretch = new CheckBox { Text = "Stretch image", AutoSize = true, ForeColor = _parent._textColor };
+                _chkStretch.CheckedChanged += (s, e) =>
+                {
+                    if (_iconPreview.Image != null && _iconPreview.Image != _defaultIcon)
+                        _iconPreview.SizeMode = _chkStretch.Checked ? PictureBoxSizeMode.StretchImage : PictureBoxSizeMode.Zoom;
+                };
 
                 _lblDesc = new Label { Text = "Description:", AutoSize = true, ForeColor = _parent._textColor };
                 _lblTopic = new Label { Text = "Topic:", AutoSize = true, ForeColor = _parent._textColor };
@@ -938,7 +1034,7 @@ namespace TaskbarMqtt.UI
                 _browseBtn.Click += OnBrowse;
                 _clearBtn = new Button { Text = "Clear", Height = 23, BackColor = _parent._btnBack, ForeColor = _parent._btnFore, FlatStyle = FlatStyle.Flat };
                 _clearBtn.FlatAppearance.BorderColor = _parent._borderColor;
-                _clearBtn.Click += (s, e) => { _iconPath.Text = ""; _iconPreview.Image = null; };
+                _clearBtn.Click += (s, e) => { _iconPath.Text = ""; _iconPreview.Image = _defaultIcon; _iconPreview.SizeMode = PictureBoxSizeMode.Zoom; };
 
                 _chkWhiteTransparent = new CheckBox { Text = "White\u2192Transparent", AutoSize = true, ForeColor = _parent._textColor };
                 _chkBlackTransparent = new CheckBox { Text = "Black\u2192Transparent", AutoSize = true, ForeColor = _parent._textColor };
@@ -947,7 +1043,8 @@ namespace TaskbarMqtt.UI
                     _lblDesc, _lblTopic, _lblQos, _lblPayload, _lblIcon,
                     _label, _topic, _qos, _payload, _retain,
                     _iconPath, _browseBtn, _clearBtn,
-                    _chkWhiteTransparent, _chkBlackTransparent
+                    _chkWhiteTransparent, _chkBlackTransparent,
+                    _chkStretch
                 });
             }
 
@@ -963,7 +1060,7 @@ namespace TaskbarMqtt.UI
                 _removeBtn.Location = new Point(w - pad - 22, 2);
 
                 int row1Top = 35;
-                int iconSize = 44;
+                int iconSize = IconSize;
                 int labelY = row1Top + 3;
 
                 _iconPreview.Location = new Point(pad, row1Top);
@@ -1035,6 +1132,7 @@ namespace TaskbarMqtt.UI
                 int row4Top = row3Top + 30;
                 _chkWhiteTransparent.Location = new Point(pad + iconSize + fieldGap, row4Top);
                 _chkBlackTransparent.Location = new Point(_chkWhiteTransparent.Right + 12, row4Top);
+                _chkStretch.Location = new Point(_chkBlackTransparent.Right + 20, row4Top);
             }
 
             private void OnBrowse(object sender, EventArgs e)
@@ -1049,9 +1147,9 @@ namespace TaskbarMqtt.UI
                         try
                         {
                             using (var bmp = new Bitmap(dlg.FileName))
-                                _iconPreview.Image = new Bitmap(bmp, 44, 44);
+                                SetPreviewImage(bmp);
                         }
-                        catch { _iconPreview.Image = null; }
+                        catch { SetPreviewImage(null); }
                     }
                 }
             }
@@ -1078,14 +1176,19 @@ namespace TaskbarMqtt.UI
                 _iconPath.Text = cfg.IconPath ?? "";
                 _chkWhiteTransparent.Checked = cfg.MakeWhiteTransparent;
                 _chkBlackTransparent.Checked = cfg.MakeBlackTransparent;
+                _chkStretch.Checked = cfg.StretchImage;
                 if (!string.IsNullOrEmpty(cfg.IconPath) && File.Exists(cfg.IconPath))
                 {
                     try
                     {
                         using (var bmp = new Bitmap(cfg.IconPath))
-                            _iconPreview.Image = new Bitmap(bmp, 44, 44);
+                            SetPreviewImage(bmp);
                     }
-                    catch { _iconPreview.Image = null; }
+                    catch { SetPreviewImage(null); }
+                }
+                else
+                {
+                    SetPreviewImage(null);
                 }
                 var label = string.IsNullOrEmpty(cfg.Label) ? "Button " + (_index + 1) : cfg.Label;
                 var topic = string.IsNullOrEmpty(cfg.Topic) ? "(no topic)" : cfg.Topic;
@@ -1103,7 +1206,8 @@ namespace TaskbarMqtt.UI
                     Retain = _retain.Checked,
                     IconPath = _iconPath.Text,
                     MakeWhiteTransparent = _chkWhiteTransparent.Checked,
-                    MakeBlackTransparent = _chkBlackTransparent.Checked
+                    MakeBlackTransparent = _chkBlackTransparent.Checked,
+                    StretchImage = _chkStretch.Checked
                 };
             }
         }

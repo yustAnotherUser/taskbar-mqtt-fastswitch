@@ -33,6 +33,7 @@ namespace TaskbarMqtt.Config
         public string IconPath { get; set; } = "";
         public bool MakeWhiteTransparent { get; set; } = false;
         public bool MakeBlackTransparent { get; set; } = false;
+        public bool StretchImage { get; set; } = false;
     }
 
     public class AppConfig
@@ -50,6 +51,7 @@ namespace TaskbarMqtt.Config
         public bool MakeWhiteTransparent { get; set; } = false;
         public bool MakeBlackTransparent { get; set; } = false;
         public string IconPath { get; set; } = "";
+        public bool StretchIcon { get; set; } = false;
         public BrokerSettings Broker { get; set; } = new BrokerSettings();
         public List<ButtonConfig> Buttons { get; set; } = new List<ButtonConfig>();
 

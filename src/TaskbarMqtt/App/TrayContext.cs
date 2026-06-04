@@ -78,7 +78,7 @@ namespace TaskbarMqtt.App
                     using (var bmp = LoadAlphaBitmap(_config.IconPath))
                     {
                         ApplyTransparency(bmp, _config);
-                        using (var resized = new Bitmap(bmp, 16, 16))
+                        using (var resized = ResizeIconForDisplay(bmp, 16, _config.StretchIcon))
                         {
                             if (_config.RoundedTrayIcon)
                             {
@@ -97,7 +97,7 @@ namespace TaskbarMqtt.App
                 using (var alpha = ToAlpha(bmp))
                 {
                     ApplyTransparency(alpha, _config);
-                    using (var resized = new Bitmap(alpha, 16, 16))
+                    using (var resized = ResizeIconForDisplay(alpha, 16, _config.StretchIcon))
                     {
                         if (_config.RoundedTrayIcon)
                         {
@@ -180,6 +180,26 @@ namespace TaskbarMqtt.App
             var hIcon = bmp.GetHicon();
             var ico = (Icon)Icon.FromHandle(hIcon).Clone();
             return ico;
+        }
+
+        internal static Bitmap ResizeIconForDisplay(Bitmap source, int targetSize, bool stretch)
+        {
+            if (stretch)
+                return new Bitmap(source, targetSize, targetSize);
+
+            float ratio = Math.Min((float)targetSize / source.Width, (float)targetSize / source.Height);
+            int newW = (int)(source.Width * ratio);
+            int newH = (int)(source.Height * ratio);
+            int x = (targetSize - newW) / 2;
+            int y = (targetSize - newH) / 2;
+            var result = new Bitmap(targetSize, targetSize);
+            using (var g = Graphics.FromImage(result))
+            {
+                g.Clear(Color.Transparent);
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(source, x, y, newW, newH);
+            }
+            return result;
         }
 
         private Icon IconForButton(int index, int size)
