@@ -30,6 +30,8 @@ namespace TaskbarMqtt.Config
         public int Qos { get; set; } = 0;
         public bool Retain { get; set; } = false;
         public string IconPath { get; set; } = "";
+        public bool MakeWhiteTransparent { get; set; } = false;
+        public bool MakeBlackTransparent { get; set; } = false;
     }
 
     public class AppConfig
@@ -40,6 +42,11 @@ namespace TaskbarMqtt.Config
         public int ButtonCount { get; set; } = 4;
         public bool StartWithWindows { get; set; } = false;
         public int PopupSizePercent { get; set; } = 100;
+        public bool ShowTooltips { get; set; } = true;
+        public bool ShowPayloadInTooltip { get; set; } = false;
+        public bool RoundedTrayIcon { get; set; } = false;
+        public bool MakeWhiteTransparent { get; set; } = false;
+        public bool MakeBlackTransparent { get; set; } = false;
         public string IconPath { get; set; } = "";
         public BrokerSettings Broker { get; set; } = new BrokerSettings();
         public List<ButtonConfig> Buttons { get; set; } = new List<ButtonConfig>();

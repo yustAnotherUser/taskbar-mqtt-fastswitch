@@ -6,35 +6,23 @@ function New-IconFromBitmap([System.Drawing.Bitmap]$bmp, [string]$path) {
     try { $icon.Save($fs) } finally { $fs.Close(); $icon.Dispose() }
 }
 
-function New-AppIcon([int]$size, [string]$path) {
+function New-AppIcon([int]$size, [string]$pngPath, [string]$path) {
+    $src = [System.Drawing.Image]::FromFile($pngPath)
     $bmp = New-Object System.Drawing.Bitmap $size, $size
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-    $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.Clear([System.Drawing.Color]::Transparent)
 
-    # Filled rounded square (MQTT purple)
-    $rect = New-Object System.Drawing.Rectangle 1, 1, ($size - 2), ($size - 2)
-    $path1 = New-Object System.Drawing.Drawing2D.GraphicsPath
-    $radius = [Math]::Max(2, [int]($size / 6))
-    $d = $radius * 2
-    $path1.AddArc($rect.X, $rect.Y, $d, $d, 180, 90)
-    $path1.AddArc($rect.Right - $d, $rect.Y, $d, $d, 270, 90)
-    $path1.AddArc($rect.Right - $d, $rect.Bottom - $d, $d, $d, 0, 90)
-    $path1.AddArc($rect.X, $rect.Bottom - $d, $d, $d, 90, 90)
-    $path1.CloseFigure()
-    $g.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(123, 31, 162))), $path1)
-
-    # White "M" letter (larger, centered)
-    $fontSize = [Math]::Max(7, [int]($size * 0.70))
-    $font = New-Object System.Drawing.Font 'Arial Black', $fontSize, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
-    $sf = New-Object System.Drawing.StringFormat
-    $sf.Alignment = [System.Drawing.StringAlignment]::Center
-    $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
-    $textRect = New-Object System.Drawing.RectangleF 0, 0, $size, $size
-    $g.DrawString('M', $font, [System.Drawing.Brushes]::White, $textRect, $sf)
+    $ratio = [Math]::Min($size / $src.Width, $size / $src.Height)
+    $w = [int]($src.Width * $ratio)
+    $h = [int]($src.Height * $ratio)
+    $x = [int](($size - $w) / 2)
+    $y = [int](($size - $h) / 2)
+    $g.DrawImage($src, $x, $y, $w, $h)
 
     $g.Dispose()
+    $src.Dispose()
     New-IconFromBitmap $bmp $path
     $bmp.Dispose()
 }
@@ -115,16 +103,14 @@ function New-MultiResIcon([string[]]$bitmaps, [string]$outPath) {
     foreach ($e in $entries) { $e.Image.Dispose() }
 }
 
-$tmp = New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetTempFileName())
-$tmpDir = $tmp.FullName
-Remove-Item $tmpDir -Recurse -Force
 $tmpDir = Join-Path $env:TEMP ([System.Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
 
+$mqttPng = Resolve-Path 'src/TaskbarMqtt/Assets/mqtt-icon.png'
 $appPngs = @()
 foreach ($s in 16, 32, 48, 64) {
     $p = Join-Path $tmpDir ("app-{0}.png" -f $s)
-    New-AppIcon $s $p
+    New-AppIcon $s $mqttPng $p
     $appPngs += $p
 }
 $appOut = Join-Path (Resolve-Path 'src/TaskbarMqtt/Assets').Path 'app.ico'

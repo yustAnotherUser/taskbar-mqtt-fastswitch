@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using TaskbarMqtt.Config;
@@ -13,6 +14,7 @@ namespace TaskbarMqtt.UI
         private readonly List<ButtonConfig> _buttons;
         private readonly Action<int> _onClick;
         private readonly Func<int, Image> _imageFor;
+        private readonly Bitmap _watermark;
         private FlowLayoutPanel _flow;
         private Timer _closeTimer;
         private readonly ToolTip _tooltip;
@@ -20,6 +22,8 @@ namespace TaskbarMqtt.UI
         private readonly int _pad;
         private readonly Font _btnFont;
         private readonly double _scale;
+        private readonly bool _showTooltips;
+        private readonly bool _showPayloadInTooltip;
 
         private const int BaseButtonSize = 44;
         private const int BasePad = 6;
@@ -56,11 +60,14 @@ namespace TaskbarMqtt.UI
         [DllImport("user32.dll")]
         private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
 
-        public PopupForm(List<ButtonConfig> buttons, Func<int, Image> imageFor, Action<int> onClick, int popupSizePercent = 100)
+        public PopupForm(List<ButtonConfig> buttons, Func<int, Image> imageFor, Action<int> onClick, Bitmap watermark, int popupSizePercent = 100, bool showTooltips = true, bool showPayloadInTooltip = false)
         {
             _buttons = buttons;
             _imageFor = imageFor;
             _onClick = onClick;
+            _watermark = watermark;
+            _showTooltips = showTooltips;
+            _showPayloadInTooltip = showPayloadInTooltip;
             _tooltip = new ToolTip();
             _scale = Math.Max(0.25, Math.Min(2.0, popupSizePercent / 100.0));
             _buttonSize = (int)Math.Round(BaseButtonSize * _scale);
@@ -171,14 +178,29 @@ namespace TaskbarMqtt.UI
                     var img = _imageFor?.Invoke(idx);
                     if (img != null)
                     {
-                        b.Image = ScaleImage(img, _buttonSize - imgInset, _buttonSize - imgInset);
+                        var scaled = ScaleImage(img, _buttonSize - imgInset, _buttonSize - imgInset);
+                        b.Image = RoundImageCorners(scaled, Math.Max(2, (int)Math.Round(6 * _scale)));
                         b.Text = "";
+                        img.Dispose();
                     }
                 }
                 catch { }
 
-                if (!string.IsNullOrEmpty(topic))
-                    _tooltip.SetToolTip(b, (label ?? "Button " + (idx + 1)) + "\n" + topic);
+                if (_watermark != null && b.Image == null)
+                {
+                    b.BackgroundImage = MakeWatermark(_watermark, _buttonSize);
+                    b.BackgroundImageLayout = ImageLayout.Center;
+                }
+
+                if (_showTooltips)
+                {
+                    var tipText = label ?? "Button " + (idx + 1);
+                    if (!string.IsNullOrEmpty(topic))
+                        tipText += "\n" + topic;
+                    if (_showPayloadInTooltip && !string.IsNullOrEmpty(cfg.Payload))
+                        tipText += "\nPayload: " + cfg.Payload;
+                    _tooltip.SetToolTip(b, tipText);
+                }
 
                 RoundButton(b);
 
@@ -206,6 +228,48 @@ namespace TaskbarMqtt.UI
                 g.DrawImage(src, 0, 0, w, h);
             }
             return bmp;
+        }
+
+        private static Bitmap MakeWatermark(Bitmap src, int buttonSize)
+        {
+            var inset = Math.Max(4, buttonSize / 5);
+            var drawSize = buttonSize - inset * 2;
+            if (drawSize < 4) drawSize = 4;
+            var bmp = new Bitmap(buttonSize, buttonSize);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                var attr = new ImageAttributes();
+                var matrix = new ColorMatrix { Matrix33 = 0.25f };
+                attr.SetColorMatrix(matrix);
+                g.DrawImage(src, new Rectangle(inset, inset, drawSize, drawSize),
+                    0, 0, src.Width, src.Height, GraphicsUnit.Pixel, attr);
+            }
+            return bmp;
+        }
+
+        private static Image RoundImageCorners(Image src, int radius)
+        {
+            var bmp = new Bitmap(src.Width, src.Height, PixelFormat.Format32bppPArgb);
+            using (var g = Graphics.FromImage(bmp))
+            using (var path = GetRoundRect(new Rectangle(0, 0, src.Width, src.Height), radius))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var brush = new TextureBrush(src, WrapMode.Clamp))
+                    g.FillPath(brush, path);
+            }
+            return bmp;
+        }
+
+        private static GraphicsPath GetRoundRect(Rectangle r, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
         public new void Show()
