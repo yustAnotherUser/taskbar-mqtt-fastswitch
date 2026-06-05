@@ -65,9 +65,9 @@ Click **Test connection** in the Broker tab to verify settings before saving.
 
 ![Buttons tab](Settings%20Buttons.png)
 
-- **Label** — shown in tooltip / tray tooltip; falls back to the button's 1-based number when empty
+- **Description** — shown in tooltip / tray tooltip; falls back to the button's 1-based number when empty
 - **Topic** — the MQTT topic to publish to (required)
-- **Payload, QoS, Retain** — arranged on one line: payload field, then QoS dropdown, then Retain checkbox
+- **Payload / QoS / Retain** — the message body, delivery guarantee (0 = at most once, 1 = at least once, 2 = exactly once), and whether the broker should keep the message for future subscribers
 - **Icon** — optional path to `.ico`, `.png`, `.jpg`, `.bmp`. PNGs/JPGs are auto-resized to fit the tray and the popup button. When empty, the button number (1–9) is shown instead.
 - **Stretch image** — when checked the icon fills the whole button; when unchecked it keeps its aspect ratio
 - **White→Transparent / Black→Transparent** — per-button
