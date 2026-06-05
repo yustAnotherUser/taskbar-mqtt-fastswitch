@@ -2,7 +2,12 @@
 
 A tiny portable Windows tray app that lives in the notification area and publishes pre-configured MQTT messages at the click of a button. Configurable 1–9 buttons, each with its own topic, payload, QoS, retain flag and custom icon.
 
+Two display modes are available:
+
+**Popup-panel mode** — one tray icon, left-click to open the floating button panel.
 ![Popup mode](popup-mode.jpg)
+
+**Multi-icon mode** — one tray icon per button, left-click to publish directly.
 ![Multi-icon mode](multi-icon-mode.jpg)
 
 ## Quick start
@@ -22,14 +27,14 @@ A tiny portable Windows tray app that lives in the notification area and publish
 Right-click any tray icon for:
 
 - **Settings…** — open the configuration dialog
-
-  ![General tab](Settings%20General.png) ![Broker tab](Settings%20Broker.png) ![Buttons tab](Settings%20Buttons.png)
-
 - **Quit** — exit the app
 
 ## Settings
 
 ### General
+
+![General tab](Settings%20General.png)
+
 - **Display mode** — popup panel from one tray icon, or one tray icon per button
 - **Popup size** — 25% to 200% in 25% steps; greyed out in multi-icon mode
 - **Popup tooltips** — enable/disable and optionally show payload; greyed out in multi-icon mode
@@ -41,6 +46,9 @@ Right-click any tray icon for:
 Settings are organized into grouped sections (MODE, POPUP, TRAY ICON, STARTUP). Popup-related controls are automatically greyed out when multi-icon mode is selected.
 
 ### Broker
+
+![Broker tab](Settings%20Broker.png)
+
 - **Host / Port / Username / Password / Client ID / Keep-alive / Connection timeout**
 - **Use TLS** — enables encrypted connection
 - **Allow invalid / self-signed TLS certificates** — checked by default; uncheck to enforce certificate validation
@@ -48,6 +56,9 @@ Settings are organized into grouped sections (MODE, POPUP, TRAY ICON, STARTUP). 
 Click **Test connection** in the Broker tab to verify settings before saving.
 
 ### Buttons (per row)
+
+![Buttons tab](Settings%20Buttons.png)
+
 - **Label** — shown in tooltip / tray tooltip; falls back to the button's 1-based number when empty
 - **Topic** — the MQTT topic to publish to (required)
 - **Payload, QoS, Retain** — arranged on one line: payload field, then QoS dropdown, then Retain checkbox
