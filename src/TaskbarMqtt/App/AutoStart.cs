@@ -6,7 +6,7 @@ namespace TaskbarMqtt.App
     public static class AutoStart
     {
         private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string ValueName = "TaskbarMqttFastSwitch";
+        private const string ValueName = "TaskbarMqttClient";
 
         public static bool IsEnabled()
         {

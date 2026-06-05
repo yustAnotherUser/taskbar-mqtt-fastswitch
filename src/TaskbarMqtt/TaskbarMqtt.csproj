@@ -10,10 +10,10 @@
     <Nullable>disable</Nullable>
     <LangVersion>10.0</LangVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <Product>Taskbar MQTT FastSwitch</Product>
+    <Product>Taskbar MQTT Client</Product>
     <Company></Company>
     <Authors></Authors>
-    <Version>1.8.1</Version>
+    <Version>1.9.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

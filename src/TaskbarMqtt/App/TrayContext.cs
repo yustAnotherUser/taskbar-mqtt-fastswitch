@@ -537,7 +537,7 @@ namespace TaskbarMqtt.App
             }
             else
             {
-                ShowBalloon("Already running", "Taskbar MQTT FastSwitch is already in the notification area.", ToolTipIcon.Info);
+                ShowBalloon("Already running", "Taskbar MQTT Client is already in the notification area.", ToolTipIcon.Info);
             }
         }
 

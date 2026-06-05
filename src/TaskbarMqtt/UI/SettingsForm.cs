@@ -427,39 +427,64 @@ namespace TaskbarMqtt.UI
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 9,
-                Padding = new Padding(20, 20, 20, 8),
+                RowCount = 15,
+                Padding = new Padding(20, 16, 20, 8),
                 BackColor = _cellBack
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            for (int i = 0; i < 9; i++)
+            for (int i = 0; i < 15; i++)
                 layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles[2] = new RowStyle(SizeType.Absolute, 6);
+            layout.RowStyles[8] = new RowStyle(SizeType.Absolute, 6);
+            layout.RowStyles[12] = new RowStyle(SizeType.Absolute, 6);
+
+            // MODE
+            var hdrMode = new Label { Text = "MODE", Font = new Font("Segoe UI", 9F, FontStyle.Bold), AutoSize = true, ForeColor = _textColor, Padding = new Padding(0, 6, 0, 2) };
+            layout.Controls.Add(hdrMode, 0, 0);
+            layout.SetColumnSpan(hdrMode, 2);
 
             _rbPopup = new RadioButton { Text = "Popup panel (left-click to open)", AutoSize = true, ForeColor = _textColor };
             _rbMulti = new RadioButton { Text = "One tray icon per button", AutoSize = true, ForeColor = _textColor };
-            _chkAutoStart = new CheckBox { Text = "Launch on Windows startup", AutoSize = true, ForeColor = _textColor };
-            _chkShowTooltips = new CheckBox { Text = "Show tooltips in popup", AutoSize = true, ForeColor = _textColor };
-            _chkShowPayloadInTooltip = new CheckBox { Text = "Show payload in tooltip", AutoSize = true, ForeColor = _textColor };
-            _chkPopupStayOpen = new CheckBox { Text = "Popup stays open on button click", AutoSize = true, ForeColor = _textColor };
 
             var modePanel = new Panel { AutoSize = true };
             modePanel.Controls.Add(_rbPopup);
             modePanel.Controls.Add(_rbMulti);
             _rbMulti.Top = _rbPopup.Bottom + 4;
 
-            layout.Controls.Add(new Label { Text = "Display mode:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 0);
-            layout.Controls.Add(modePanel, 1, 0);
-            layout.Controls.Add(new Label { Text = "Autostart:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 1);
-            layout.Controls.Add(_chkAutoStart, 1, 1);
+            layout.Controls.Add(new Label { Text = "Display mode:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 1);
+            layout.Controls.Add(modePanel, 1, 1);
+
+            // POPUP
+            var hdrPopup = new Label { Text = "POPUP", Font = new Font("Segoe UI", 9F, FontStyle.Bold), AutoSize = true, ForeColor = _textColor, Padding = new Padding(0, 6, 0, 2) };
+            layout.Controls.Add(hdrPopup, 0, 3);
+            layout.SetColumnSpan(hdrPopup, 2);
 
             _cbPopupSize = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 80, Anchor = AnchorStyles.Left | AnchorStyles.Top, BackColor = _inputBack, ForeColor = _inputFore, DrawMode = DrawMode.OwnerDrawFixed };
             _cbPopupSize.DrawItem += ComboDrawItem;
             ApplyDarkWindow(_cbPopupSize);
             for (int v = 25; v <= 200; v += 25)
                 _cbPopupSize.Items.Add(v + "%");
-            layout.Controls.Add(new Label { Text = "Popup size:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 2);
-            layout.Controls.Add(_cbPopupSize, 1, 2);
+
+            layout.Controls.Add(new Label { Text = "Popup size:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 4);
+            layout.Controls.Add(_cbPopupSize, 1, 4);
+
+            _chkShowTooltips = new CheckBox { Text = "Show tooltips in popup", AutoSize = true, ForeColor = _textColor };
+            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 5);
+            layout.Controls.Add(_chkShowTooltips, 1, 5);
+
+            _chkShowPayloadInTooltip = new CheckBox { Text = "Show payload in tooltip", AutoSize = true, ForeColor = _textColor };
+            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 6);
+            layout.Controls.Add(_chkShowPayloadInTooltip, 1, 6);
+
+            _chkPopupStayOpen = new CheckBox { Text = "Popup stays open on button click", AutoSize = true, ForeColor = _textColor };
+            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 7);
+            layout.Controls.Add(_chkPopupStayOpen, 1, 7);
+
+            // TRAY ICON
+            var hdrIcon = new Label { Text = "TRAY ICON", Font = new Font("Segoe UI", 9F, FontStyle.Bold), AutoSize = true, ForeColor = _textColor, Padding = new Padding(0, 6, 0, 2) };
+            layout.Controls.Add(hdrIcon, 0, 9);
+            layout.SetColumnSpan(hdrIcon, 2);
 
             _txIconPath = new TextBox { Width = 220, Anchor = AnchorStyles.Left, BackColor = _inputBack, ForeColor = _inputFore };
             _btnIconBrowse = new Button { Text = "Browse\u2026", Width = 75, Height = 23, Margin = new Padding(6, 0, 0, 0), BackColor = _btnBack, ForeColor = _btnFore, FlatStyle = FlatStyle.Flat };
@@ -474,44 +499,62 @@ namespace TaskbarMqtt.UI
             iconPanel.Controls.Add(btnClearIcon);
 
             _iconTrayPreview = new PictureBox { Width = 44, Height = 44, SizeMode = PictureBoxSizeMode.Zoom, BackColor = _cellBack, BorderStyle = BorderStyle.FixedSingle };
+
+            var iconRow = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0) };
+            iconRow.Controls.Add(_iconTrayPreview);
+            iconRow.Controls.Add(iconPanel);
+
+            layout.Controls.Add(new Label { Text = "Custom icon:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 10);
+            layout.Controls.Add(iconRow, 1, 10);
+
             _chkStretchIcon = new CheckBox { Text = "Stretch image", AutoSize = true, ForeColor = _textColor };
             _chkStretchIcon.CheckedChanged += (s, e) =>
             {
                 if (_iconTrayPreview.Image != null && _iconTrayPreview.Image != (_defaultButtonIcon ?? new Bitmap(1, 1)))
                     _iconTrayPreview.SizeMode = _chkStretchIcon.Checked ? PictureBoxSizeMode.StretchImage : PictureBoxSizeMode.Zoom;
             };
+            _chkRoundedTrayIcon = new CheckBox { Text = "Rounded icon", AutoSize = true, ForeColor = _textColor };
+            _chkIconWhiteTransparent = new CheckBox { Text = "White\u2192Transparent", AutoSize = true, ForeColor = _textColor };
+            _chkIconBlackTransparent = new CheckBox { Text = "Black\u2192Transparent", AutoSize = true, ForeColor = _textColor };
 
-            var iconRow = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0) };
-            iconRow.Controls.Add(_iconTrayPreview);
-            iconRow.Controls.Add(iconPanel);
+            var appPanel = new FlowLayoutPanel { AutoSize = true, Margin = new Padding(0) };
+            appPanel.Controls.Add(_chkStretchIcon);
+            appPanel.Controls.Add(_chkRoundedTrayIcon);
+            appPanel.Controls.Add(_chkIconWhiteTransparent);
+            appPanel.Controls.Add(_chkIconBlackTransparent);
 
-            layout.Controls.Add(new Label { Text = "Custom tray icon:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 3);
-            layout.Controls.Add(iconRow, 1, 3);
-            layout.Controls.Add(new Label { Text = "Tooltips:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 4);
-            layout.Controls.Add(_chkShowTooltips, 1, 4);
-            layout.Controls.Add(new Label { Text = "", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 5);
-            layout.Controls.Add(_chkShowPayloadInTooltip, 1, 5);
-            layout.Controls.Add(new Label { Text = "Popup behavior:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 6);
-            layout.Controls.Add(_chkPopupStayOpen, 1, 6);
+            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 11);
+            layout.Controls.Add(appPanel, 1, 11);
 
-            _chkShowTooltips.CheckedChanged += (s, e) => _chkShowPayloadInTooltip.Enabled = _chkShowTooltips.Checked;
+            // STARTUP
+            var hdrStartup = new Label { Text = "STARTUP", Font = new Font("Segoe UI", 9F, FontStyle.Bold), AutoSize = true, ForeColor = _textColor, Padding = new Padding(0, 6, 0, 2) };
+            layout.Controls.Add(hdrStartup, 0, 13);
+            layout.SetColumnSpan(hdrStartup, 2);
 
-            _chkRoundedTrayIcon = new CheckBox { Text = "Rounded tray icon", AutoSize = true, ForeColor = _textColor };
-            layout.Controls.Add(new Label { Text = "Appearance:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 7);
-            layout.Controls.Add(_chkRoundedTrayIcon, 1, 7);
+            _chkAutoStart = new CheckBox { Text = "Launch on Windows startup", AutoSize = true, ForeColor = _textColor };
+            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 14);
+            layout.Controls.Add(_chkAutoStart, 1, 14);
 
-            layout.Controls.Add(new Label { Text = "Stretch:", AutoSize = true, Anchor = AnchorStyles.Top, Padding = new Padding(0, 3, 0, 0), ForeColor = _textColor }, 0, 8);
-            layout.Controls.Add(_chkStretchIcon, 1, 8);
-
-            _chkIconWhiteTransparent = new CheckBox { Text = "White\u2192Transparent (tray icon)", AutoSize = true, ForeColor = _textColor };
-            _chkIconBlackTransparent = new CheckBox { Text = "Black\u2192Transparent (tray icon)", AutoSize = true, ForeColor = _textColor };
-            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 9);
-            layout.Controls.Add(_chkIconWhiteTransparent, 1, 9);
-
-            layout.Controls.Add(new Label { Text = "", AutoSize = true }, 0, 10);
-            layout.Controls.Add(_chkIconBlackTransparent, 1, 10);
+            _rbPopup.CheckedChanged += (s, e) => UpdateGreyOut();
+            _rbMulti.CheckedChanged += (s, e) => UpdateGreyOut();
+            _chkShowTooltips.CheckedChanged += (s, e) => UpdateGreyOut();
 
             _tabPageGeneral.Controls.Add(layout);
+        }
+
+        private void UpdateGreyOut()
+        {
+            bool popupMode = _rbPopup.Checked;
+            _cbPopupSize.Enabled = popupMode;
+            _cbPopupSize.ForeColor = popupMode ? _inputFore : _grayText;
+            _chkShowTooltips.Enabled = popupMode;
+            _chkShowTooltips.ForeColor = popupMode ? _textColor : _grayText;
+            _chkPopupStayOpen.Enabled = popupMode;
+            _chkPopupStayOpen.ForeColor = popupMode ? _textColor : _grayText;
+
+            bool payloadEnabled = popupMode && _chkShowTooltips.Checked;
+            _chkShowPayloadInTooltip.Enabled = payloadEnabled;
+            _chkShowPayloadInTooltip.ForeColor = payloadEnabled ? _textColor : _grayText;
         }
 
         private void SetTrayIconPreview(string path)
@@ -639,13 +682,15 @@ namespace TaskbarMqtt.UI
 
             var lines = new[]
             {
-                "Taskbar MQTT FastSwitch",
+                "Taskbar MQTT Client",
                 "",
-                "Version 1.8.1",
+                "Version 1.9.0",
                 "",
-                "Created by MiniMax V3",
-                "Made working by OpenCode's Big Pickle",
-                "Supervised by yustAnotherUser",
+                "Created with OpenCode's MiniMax V3:free",
+                "OpenCode's Big Pickle",
+                "and OpenCode's DeepSeek V4 Flash:free",
+                "",
+                "Maintained by yustAnotherUser",
                 "",
                 "A lightweight tray application that publishes",
                 "pre-configured MQTT messages at the click of a button.",
@@ -775,7 +820,6 @@ namespace TaskbarMqtt.UI
             _cbPopupSize.SelectedItem = pct + "%";
             _chkShowTooltips.Checked = _draft.ShowTooltips;
             _chkShowPayloadInTooltip.Checked = _draft.ShowPayloadInTooltip;
-            _chkShowPayloadInTooltip.Enabled = _draft.ShowTooltips;
             _chkPopupStayOpen.Checked = _draft.PopupStaysOpen;
             _chkRoundedTrayIcon.Checked = _draft.RoundedTrayIcon;
             _chkIconWhiteTransparent.Checked = _draft.MakeWhiteTransparent;
@@ -809,6 +853,7 @@ namespace TaskbarMqtt.UI
             _btnPanel.ResumeLayout();
             UpdateRowWidths();
             RefreshButtonStates();
+            UpdateGreyOut();
         }
 
         private bool CollectToDraft()
@@ -939,11 +984,33 @@ namespace TaskbarMqtt.UI
             private const int IconSize = 44;
             private CheckBox _chkStretch;
 
+            private void RefreshPreview()
+            {
+                var path = _iconPath.Text.Trim();
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    _iconPreview.Image = _defaultIcon;
+                    return;
+                }
+                try
+                {
+                    using (var bmp = new Bitmap(path))
+                        SetPreviewImage(bmp);
+                }
+                catch
+                {
+                    _iconPreview.Image = _defaultIcon;
+                }
+            }
+
             private void SetPreviewImage(Image src)
             {
                 if (src == null) { _iconPreview.Image = _defaultIcon; return; }
-                using (var copy = new Bitmap(src))
-                    _iconPreview.Image = new Bitmap(copy);
+                using (var bmp = new Bitmap(src))
+                {
+                    SettingsForm.ApplyTransparency(bmp, _chkWhiteTransparent.Checked, _chkBlackTransparent.Checked);
+                    _iconPreview.Image = new Bitmap(bmp);
+                }
                 _iconPreview.SizeMode = _chkStretch.Checked ? PictureBoxSizeMode.StretchImage : PictureBoxSizeMode.Zoom;
             }
 
@@ -1037,7 +1104,9 @@ namespace TaskbarMqtt.UI
                 _clearBtn.Click += (s, e) => { _iconPath.Text = ""; _iconPreview.Image = _defaultIcon; _iconPreview.SizeMode = PictureBoxSizeMode.Zoom; };
 
                 _chkWhiteTransparent = new CheckBox { Text = "White\u2192Transparent", AutoSize = true, ForeColor = _parent._textColor };
+                _chkWhiteTransparent.CheckedChanged += (s, e) => RefreshPreview();
                 _chkBlackTransparent = new CheckBox { Text = "Black\u2192Transparent", AutoSize = true, ForeColor = _parent._textColor };
+                _chkBlackTransparent.CheckedChanged += (s, e) => RefreshPreview();
 
                 Controls.AddRange(new Control[] {
                     _lblDesc, _lblTopic, _lblQos, _lblPayload, _lblIcon,
@@ -1069,16 +1138,13 @@ namespace TaskbarMqtt.UI
                 int labelGap = 4;
                 int x = pad + iconSize + fieldGap;
 
+                // Row 1: Description + Topic
                 int descLblW = _lblDesc.Width;
                 int topicLblW = _lblTopic.Width;
-                int qosLblW = _lblQos.Width;
-
-                int retainW = 70;
-                int qosDW = 54;
-                int avail = rowW - iconSize - fieldGap - descLblW - labelGap - topicLblW - labelGap - qosLblW - labelGap - qosDW - fieldGap - retainW;
-                int labelW = (int)(avail * 0.45);
+                int avail1 = rowW - iconSize - fieldGap - descLblW - labelGap - topicLblW - labelGap;
+                int labelW = (int)(avail1 * 0.4);
                 if (labelW < 80) labelW = 80;
-                int topicW = avail - labelW;
+                int topicW = avail1 - labelW;
                 if (topicW < 100) topicW = 100;
 
                 _lblDesc.Location = new Point(x, labelY);
@@ -1093,24 +1159,32 @@ namespace TaskbarMqtt.UI
                 _topic.Width = topicW;
                 x += topicW + fieldGap;
 
-                _lblQos.Location = new Point(x, labelY);
-                x += qosLblW + labelGap;
-                _qos.Location = new Point(x, row1Top);
-                _qos.Width = qosDW;
-                x += qosDW + fieldGap;
-
-                _retain.Location = new Point(x, row1Top + 1);
-
+                // Row 2: Payload + QoS + Retain
                 int row2Top = row1Top + 30;
                 x = pad + iconSize + fieldGap;
 
                 int payloadLblW = _lblPayload.Width;
-                int payloadW = Math.Max(120, rowW - iconSize - fieldGap - x - payloadLblW - labelGap);
+                int qosLblW = _lblQos.Width;
+                int qosDW = 54;
+                int retainW = 70;
+                int avail2 = rowW - iconSize - fieldGap - payloadLblW - labelGap - qosLblW - labelGap - qosDW - fieldGap - retainW;
+                int payloadW = Math.Max(80, avail2);
+
                 _lblPayload.Location = new Point(x, labelY + 30);
                 x += payloadLblW + labelGap;
                 _payload.Location = new Point(x, row2Top);
                 _payload.Width = payloadW;
+                x += payloadW + fieldGap;
 
+                _lblQos.Location = new Point(x, labelY + 30);
+                x += qosLblW + labelGap;
+                _qos.Location = new Point(x, row2Top);
+                _qos.Width = qosDW;
+                x += qosDW + fieldGap;
+
+                _retain.Location = new Point(x, row2Top + 1);
+
+                // Row 3: Icon path
                 int row3Top = row2Top + 30;
                 x = pad + iconSize + fieldGap;
 
@@ -1129,6 +1203,7 @@ namespace TaskbarMqtt.UI
                 _clearBtn.Location = new Point(x, row3Top - 1);
                 _clearBtn.Width = 60;
 
+                // Row 4: Transparency / stretch
                 int row4Top = row3Top + 30;
                 _chkWhiteTransparent.Location = new Point(pad + iconSize + fieldGap, row4Top);
                 _chkBlackTransparent.Location = new Point(_chkWhiteTransparent.Right + 12, row4Top);
@@ -1144,12 +1219,7 @@ namespace TaskbarMqtt.UI
                     if (dlg.ShowDialog() == DialogResult.OK)
                     {
                         _iconPath.Text = dlg.FileName;
-                        try
-                        {
-                            using (var bmp = new Bitmap(dlg.FileName))
-                                SetPreviewImage(bmp);
-                        }
-                        catch { SetPreviewImage(null); }
+                        RefreshPreview();
                     }
                 }
             }

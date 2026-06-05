@@ -68,7 +68,7 @@ namespace TaskbarMqtt.Mqtt
                 var suffix = new Random().Next(100000, 999999).ToString();
                 CurrentClientId = (!string.IsNullOrWhiteSpace(snapshot.ClientId)
                     ? snapshot.ClientId
-                    : "TaskbarMqtt-" + Environment.MachineName) + "-" + suffix;
+                    : "TaskbarMqttClient-" + Environment.MachineName) + "-" + suffix;
 
                 var builder = new MqttClientOptionsBuilder()
                     .WithTcpServer(snapshot.Host, snapshot.Port)

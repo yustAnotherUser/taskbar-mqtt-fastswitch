@@ -1,6 +1,6 @@
-; Taskbar MQTT FastSwitch installer
-#define MyAppName "Taskbar MQTT FastSwitch"
-#define MyAppVersion "1.8.1"
+; Taskbar MQTT Client installer
+#define MyAppName "Taskbar MQTT Client"
+#define MyAppVersion "1.9.0"
 #define MyAppPublisher "yustAnotherUser"
 #define MyAppURL "https://github.com/yustAnotherUser/taskbar-mqtt-fastswitch"
 #define MyAppExeName "TaskbarMqtt.exe"

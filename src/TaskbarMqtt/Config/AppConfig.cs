@@ -61,6 +61,7 @@ namespace TaskbarMqtt.Config
         public static AppConfig CreateDefault()
         {
             var cfg = new AppConfig();
+            cfg.Broker.ClientId = "Taskbar MQTT Client";
             for (int i = 0; i < cfg.ButtonCount; i++)
             {
                 cfg.Buttons.Add(new ButtonConfig

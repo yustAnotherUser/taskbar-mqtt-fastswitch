@@ -1,10 +1,12 @@
-# Taskbar MQTT FastSwitch
+# Taskbar MQTT Client
 
 A tiny portable Windows tray app that lives in the notification area and publishes pre-configured MQTT messages at the click of a button. Configurable 1–9 buttons, each with its own topic, payload, QoS, retain flag and custom icon.
 
+**Keywords:** MQTT client, Windows tray app, notification area, IoT button, home automation, smart home, MQTT publisher, Windows taskbar, portable MQTT, dark mode, .NET Framework 4.8, WinForms, auto-reconnect, TLS support, custom icons, multi-icon tray.
+
 ## Quick start
 
-1. Copy `dist\TaskbarMqtt.exe` (and optionally `TaskbarMqtt.exe.config`) anywhere on your machine.
+1. Copy `dist\TaskbarMqtt_Setup_v1.9.0.exe` anywhere on your machine.
 2. Run it. The app starts silently in the notification area (bottom-right of the taskbar).
 3. Right-click the tray icon → **Settings…**.
 4. Fill in the **Broker** tab (host, port, credentials, TLS) and click **Test connection** to verify.
@@ -25,12 +27,17 @@ Right-click any tray icon for:
 
 ### General
 - **Display mode** — popup panel from one tray icon, or one tray icon per button
-- **Start with Windows** — toggle autostart via `HKCU\…\Run`
-- **Popup size** — 25% to 200% in 25% steps
+- **Popup size** — 25% to 200% in 25% steps; greyed out in multi-icon mode
+- **Popup tooltips** — enable/disable and optionally show payload; greyed out in multi-icon mode
+- **Popup stays open on click** — keep the popup visible after publishing
 - **Custom tray icon** — optional path to `.ico`, `.png`, `.jpg`, `.bmp` for the main tray icon (popup mode)
+- **Stretch, rounded corners, White→Transparent, Black→Transparent** — tray icon appearance options
+- **Start with Windows** — toggle autostart via `HKCU\…\Run`
+
+Settings are organized into grouped sections (MODE, POPUP, TRAY ICON, STARTUP). Popup-related controls are automatically greyed out when multi-icon mode is selected.
 
 ### Broker
-- **Host / Port / Username / Password / Client ID / Keep-alive**
+- **Host / Port / Username / Password / Client ID / Keep-alive / Connection timeout**
 - **Use TLS** — enables encrypted connection
 - **Allow invalid / self-signed TLS certificates** — checked by default; uncheck to enforce certificate validation
 
@@ -39,10 +46,10 @@ Click **Test connection** in the Broker tab to verify settings before saving.
 ### Buttons (per row)
 - **Label** — shown in tooltip / tray tooltip; falls back to the button's 1-based number when empty
 - **Topic** — the MQTT topic to publish to (required)
-- **Payload** — the message body (string)
-- **QoS** — 0, 1, or 2
-- **Retain** — whether the broker should retain the message
+- **Payload, QoS, Retain** — arranged on one line: payload field, then QoS dropdown, then Retain checkbox
 - **Icon** — optional path to `.ico`, `.png`, `.jpg`, `.bmp`. PNGs/JPGs are auto-resized to fit the tray and the popup button. When empty, the button number (1–9) is shown instead.
+- **Stretch image** — when checked the icon fills the whole button; when unchecked it keeps its aspect ratio
+- **White→Transparent / Black→Transparent** — per-button
 
 Buttons are added and removed dynamically in the Buttons tab using the **+ Add Button** and **✕** buttons (minimum 1, maximum 9).
 
@@ -57,6 +64,11 @@ Buttons are added and removed dynamically in the Buttons tab using the **+ Add B
   "StartWithWindows": false,
   "PopupSizePercent": 100,
   "IconPath": "",
+  "StretchIcon": false,
+  "PopupStaysOpen": false,
+  "RoundedTrayIcon": false,
+  "ShowTooltips": true,
+  "ShowPayloadInTooltip": false,
   "Broker": {
     "Host": "192.168.1.10",
     "Port": 1883,
@@ -64,12 +76,13 @@ Buttons are added and removed dynamically in the Buttons tab using the **+ Add B
     "AllowInvalidCerts": true,
     "Username": "",
     "Password": "",
-    "ClientId": "TaskbarMqtt",
-    "KeepAliveSeconds": 30
+    "ClientId": "Taskbar MQTT Client",
+    "KeepAliveSeconds": 30,
+    "ConnectTimeoutSeconds": 10
   },
   "Buttons": [
-    { "Label": "Lights On",  "Topic": "home/lights/main", "Payload": "ON",  "Qos": 0, "Retain": false, "IconPath": "" },
-    { "Label": "Lights Off", "Topic": "home/lights/main", "Payload": "OFF", "Qos": 0, "Retain": false, "IconPath": "" }
+    { "Label": "Lights On",  "Topic": "home/lights/main", "Payload": "ON",  "Qos": 0, "Retain": false, "IconPath": "", "StretchImage": false },
+    { "Label": "Lights Off", "Topic": "home/lights/main", "Payload": "OFF", "Qos": 0, "Retain": false, "IconPath": "", "StretchImage": false }
   ]
 }
 ```
@@ -119,3 +132,7 @@ Produces multi-resolution `.ico` files (16/32/48/64) embedded into the assembly.
 ## License
 
 MIT. Third-party: MQTTnet (MIT), Newtonsoft.Json (MIT), Costura.Fody (MIT).
+
+## Version history
+
+- **1.9.0** — Grouped General tab sections with grey-out logic; Retain moved to Payload line in button rows; popup image centering fixes; watermark scaling fix; rounded corners via SetClip approach; per-button StretchImage; aspect-ratio preserving icon display; custom tray icon preview.

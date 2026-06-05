@@ -175,32 +175,52 @@ namespace TaskbarMqtt.UI
                 b.FlatAppearance.MouseOverBackColor = BtnHover;
                 b.FlatAppearance.MouseDownBackColor = BtnDown;
 
+                int avail = _buttonSize - imgInset;
+                int imgOff = (_buttonSize - avail) / 2;
+                int cornerRadius = Math.Max(2, (int)Math.Round(6 * _scale));
+
                 try
                 {
                     var img = _imageFor?.Invoke(idx);
                     if (img != null)
                     {
-                        var avail = _buttonSize - imgInset;
-                        Image scaled;
-                        if (cfg.StretchImage)
+                        var canvas = new Bitmap(_buttonSize, _buttonSize, PixelFormat.Format32bppPArgb);
+                        using (var g = Graphics.FromImage(canvas))
                         {
-                            scaled = new Bitmap(img, avail, avail);
+                            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                            if (cfg.StretchImage)
+                            {
+                                g.DrawImage(img, imgOff, imgOff, avail, avail);
+                            }
+                            else
+                            {
+                                var sized = ScaleImage(img, avail, avail);
+                                int cx = imgOff + (avail - sized.Width) / 2;
+                                int cy = imgOff + (avail - sized.Height) / 2;
+                                g.DrawImage(sized, cx, cy);
+                                sized.Dispose();
+                            }
                         }
-                        else
-                        {
-                            scaled = ScaleImage(img, avail, avail);
-                        }
-                        b.Image = RoundImageCorners(scaled, Math.Max(2, (int)Math.Round(6 * _scale)));
+                        b.Image = RoundImageCorners(canvas, cornerRadius);
                         b.Text = "";
                         img.Dispose();
                     }
                 }
                 catch { }
 
-                if (_watermark != null && b.Image == null)
+                if (b.Image == null && _watermark != null)
                 {
-                    b.BackgroundImage = MakeWatermark(_watermark, _buttonSize);
-                    b.BackgroundImageLayout = ImageLayout.Center;
+                    var canvas = new Bitmap(_buttonSize, _buttonSize, PixelFormat.Format32bppPArgb);
+                    using (var g = Graphics.FromImage(canvas))
+                    {
+                        var attr = new ImageAttributes();
+                        var matrix = new ColorMatrix { Matrix33 = 0.25f };
+                        attr.SetColorMatrix(matrix);
+                        g.DrawImage(_watermark,
+                            new Rectangle(imgOff, imgOff, avail, avail),
+                            0, 0, _watermark.Width, _watermark.Height, GraphicsUnit.Pixel, attr);
+                    }
+                    b.Image = RoundImageCorners(canvas, cornerRadius);
                 }
 
                 if (_showTooltips)
@@ -241,32 +261,16 @@ namespace TaskbarMqtt.UI
             return bmp;
         }
 
-        private static Bitmap MakeWatermark(Bitmap src, int buttonSize)
-        {
-            var inset = Math.Max(4, buttonSize / 5);
-            var drawSize = buttonSize - inset * 2;
-            if (drawSize < 4) drawSize = 4;
-            var bmp = new Bitmap(buttonSize, buttonSize);
-            using (var g = Graphics.FromImage(bmp))
-            {
-                var attr = new ImageAttributes();
-                var matrix = new ColorMatrix { Matrix33 = 0.25f };
-                attr.SetColorMatrix(matrix);
-                g.DrawImage(src, new Rectangle(inset, inset, drawSize, drawSize),
-                    0, 0, src.Width, src.Height, GraphicsUnit.Pixel, attr);
-            }
-            return bmp;
-        }
-
         private static Image RoundImageCorners(Image src, int radius)
         {
+            radius = Math.Max(1, Math.Min(radius, Math.Min(src.Width, src.Height) / 2));
             var bmp = new Bitmap(src.Width, src.Height, PixelFormat.Format32bppPArgb);
             using (var g = Graphics.FromImage(bmp))
             using (var path = GetRoundRect(new Rectangle(0, 0, src.Width, src.Height), radius))
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                using (var brush = new TextureBrush(src, WrapMode.Clamp))
-                    g.FillPath(brush, path);
+                g.SetClip(path);
+                g.DrawImage(src, 0, 0, src.Width, src.Height);
             }
             return bmp;
         }
