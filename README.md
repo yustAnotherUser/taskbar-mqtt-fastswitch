@@ -2,7 +2,8 @@
 
 A tiny portable Windows tray app that lives in the notification area and publishes pre-configured MQTT messages at the click of a button. Configurable 1–9 buttons, each with its own topic, payload, QoS, retain flag and custom icon.
 
-**Keywords:** MQTT client, Windows tray app, notification area, IoT button, home automation, smart home, MQTT publisher, Windows taskbar, portable MQTT, dark mode, .NET Framework 4.8, WinForms, auto-reconnect, TLS support, custom icons, multi-icon tray.
+![Popup mode](popup-mode.jpg)
+![Multi-icon mode](multi-icon-mode.jpg)
 
 ## Quick start
 
@@ -21,6 +22,9 @@ A tiny portable Windows tray app that lives in the notification area and publish
 Right-click any tray icon for:
 
 - **Settings…** — open the configuration dialog
+
+  ![General tab](Settings%20General.png) ![Broker tab](Settings%20Broker.png) ![Buttons tab](Settings%20Buttons.png)
+
 - **Quit** — exit the app
 
 ## Settings
@@ -57,37 +61,7 @@ Buttons are added and removed dynamically in the Buttons tab using the **+ Add B
 
 `config.json` is created on first launch and re-written on every **Apply** / **OK** in Settings. It lives next to `TaskbarMqtt.exe` (portable mode). When installed in `Program Files`, the app falls back to `%LOCALAPPDATA%\TaskbarMqtt\config.json` because the install directory is read-only.
 
-```json
-{
-  "DisplayMode": "PopupPanel",
-  "ButtonCount": 4,
-  "StartWithWindows": false,
-  "PopupSizePercent": 100,
-  "IconPath": "",
-  "StretchIcon": false,
-  "PopupStaysOpen": false,
-  "RoundedTrayIcon": false,
-  "ShowTooltips": true,
-  "ShowPayloadInTooltip": false,
-  "Broker": {
-    "Host": "192.168.1.10",
-    "Port": 1883,
-    "UseTls": false,
-    "AllowInvalidCerts": true,
-    "Username": "",
-    "Password": "",
-    "ClientId": "Taskbar MQTT Client",
-    "KeepAliveSeconds": 30,
-    "ConnectTimeoutSeconds": 10
-  },
-  "Buttons": [
-    { "Label": "Lights On",  "Topic": "home/lights/main", "Payload": "ON",  "Qos": 0, "Retain": false, "IconPath": "", "StretchImage": false },
-    { "Label": "Lights Off", "Topic": "home/lights/main", "Payload": "OFF", "Qos": 0, "Retain": false, "IconPath": "", "StretchImage": false }
-  ]
-}
-```
-
-`DisplayMode` is either `"PopupPanel"` or `"MultipleIcons"`. The file is hand-editable; changes take effect on next launch.
+The file is hand-editable; changes take effect on next launch.
 
 ## Build from source
 
@@ -121,13 +95,15 @@ src/TaskbarMqtt/
     button-default.ico  # Default button icon
 ```
 
-## Regenerating the icons
+## Regenerating the tray and button icons
+
+Only needed if you want to modify the built-in `app.ico` (tray icon) or `button-default.ico` (default button icon). The source `.png` files and the generation script are in the repository root; run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File generate-icons.ps1
 ```
 
-Produces multi-resolution `.ico` files (16/32/48/64) embedded into the assembly.
+Produces multi-resolution `.ico` files (16/32/48/64) that are then embedded into the assembly at build time.
 
 ## License
 
@@ -136,3 +112,7 @@ MIT. Third-party: MQTTnet (MIT), Newtonsoft.Json (MIT), Costura.Fody (MIT).
 ## Version history
 
 - **1.9.0** — Grouped General tab sections with grey-out logic; Retain moved to Payload line in button rows; popup image centering fixes; watermark scaling fix; rounded corners via SetClip approach; per-button StretchImage; aspect-ratio preserving icon display; custom tray icon preview.
+
+---
+
+**Keywords:** MQTT client, Windows tray app, notification area, IoT button, home automation, smart home, MQTT publisher, Windows taskbar, portable MQTT, dark mode, .NET Framework 4.8, WinForms, auto-reconnect, TLS support, custom icons, multi-icon tray.
