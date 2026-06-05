@@ -4,8 +4,9 @@ A tiny portable Windows tray app that lives in the notification area and publish
 
 Two display modes are available:
 
-**Popup-panel mode** — one tray icon, left-click to open the floating button panel.
+**Popup-panel mode** — one tray icon, left-click to open a floating button panel. Its size is configurable from 25% to 200%.
 ![Popup mode](popup-mode.jpg)
+![Popup at 100% scale](popup-mode-100percent-scaled.jpg) ![Popup at 25% scale](popup-mode-25percent-scaled.jpg)
 
 **Multi-icon mode** — one tray icon per button, left-click to publish directly.
 ![Multi-icon mode](multi-icon-mode.jpg)
