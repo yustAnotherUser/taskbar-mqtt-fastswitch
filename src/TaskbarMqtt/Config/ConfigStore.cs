@@ -12,6 +12,11 @@ namespace TaskbarMqtt.Config
             {
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 var local = Path.Combine(baseDir, "config.json");
+                if (!IsWindows)
+                {
+                    if (File.Exists(local)) return local;
+                    return DefaultDataPath;
+                }
                 try
                 {
                     var probe = Path.Combine(baseDir, Path.GetRandomFileName());
@@ -20,6 +25,35 @@ namespace TaskbarMqtt.Config
                     return local;
                 }
                 catch { }
+                return DefaultDataPath;
+            }
+        }
+
+        private static bool IsWindows
+        {
+            get
+            {
+#if NET5_0_OR_GREATER
+                return OperatingSystem.IsWindows();
+#else
+                return System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+                    System.Runtime.InteropServices.OSPlatform.Windows);
+#endif
+            }
+        }
+
+        public static string DefaultDataPath
+        {
+            get
+            {
+                if (!IsWindows)
+                {
+                    var xdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+                    if (string.IsNullOrEmpty(xdgConfig))
+                        xdgConfig = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+                    return Path.Combine(xdgConfig, "TaskbarMqtt", "config.json");
+                }
                 return Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "TaskbarMqtt", "config.json");

@@ -1,6 +1,6 @@
 # Taskbar MQTT Client
 
-A tiny portable Windows tray app that lives in the notification area and publishes pre-configured MQTT messages at the click of a button. Configurable 1–9 buttons, each with its own topic, payload, QoS, retain flag and custom icon.
+A tiny portable tray app for Windows and Linux that lives in the notification area and publishes pre-configured MQTT messages at the click of a button. Configurable 1–9 buttons, each with its own topic, payload, QoS, retain flag and custom icon.
 
 Two display modes are available:
 
@@ -16,7 +16,31 @@ Two display modes are available:
 
 ![Multi-icon mode](multi-icon-mode.jpg)
 
-## Quick start
+## Linux
+
+The Linux edition (`taskbar-mqtt`) is built with .NET 9 and Avalonia. It uses the freedesktop StatusNotifierItem protocol for the tray, so it works with KDE Plasma, XFCE, Cinnamon, MATE, LXQt, Budgie, Unity, and GNOME with the AppIndicator extension. Settings are stored as XDG config, autostart uses `~/.config/autostart`, and notifications go through `notify-send`.
+
+### Install a release binary
+
+1. Download `taskbar-mqtt-linux-x64` from the [releases](../../releases) page.
+2. `chmod +x taskbar-mqtt-linux-x64`
+3. Put it in your `PATH` (for example `~/.local/bin`) and run it. The app starts silently in the notification area.
+4. Right-click the tray icon and open **Settings…** to configure broker and buttons.
+5. To autostart, tick **Launch on login** in the General tab (writes `~/.config/autostart/taskbar-mqtt.desktop`).
+
+### Install from source
+
+```bash
+dotnet publish src/TaskbarMqtt.Linux/TaskbarMqtt.Linux.csproj -c Release -r linux-x64 \
+    --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+    -o publish/linux-x64
+./install.sh            # installs to ~/.local (no root needed); ./install.sh /usr for system-wide
+./uninstall.sh          # remove again
+```
+
+The binary is self-contained — no .NET runtime installation is required. On Wayland sessions the app runs through XWayland so the popup panel can position itself next to the tray.
+
+## Quick start (Windows)
 
 1. Copy `dist\TaskbarMqtt_Setup_v1.9.0.exe` anywhere on your machine.
 2. Run it. The app starts silently in the notification area (bottom-right of the taskbar).
@@ -76,11 +100,11 @@ Buttons are added and removed dynamically in the Buttons tab using the **+ Add B
 
 ## Config file format
 
-`config.json` is created on first launch and re-written on every **Apply** / **OK** in Settings. It lives next to `TaskbarMqtt.exe` (portable mode). When installed in `Program Files`, the app falls back to `%LOCALAPPDATA%\TaskbarMqtt\config.json` because the install directory is read-only.
+`config.json` is created on first launch and re-written on every **Apply** / **OK** in Settings. On Windows it lives next to `TaskbarMqtt.exe` (portable mode); when installed in `Program Files`, the app falls back to `%LOCALAPPDATA%\TaskbarMqtt\config.json` because the install directory is read-only. On Linux the config lives at `~/.config/TaskbarMqtt/config.json`; a `config.json` placed next to the binary is used instead (portable layout).
 
 The file is hand-editable; changes take effect on next launch.
 
-## Build from source
+## Build from source (Windows)
 
 Requirements: .NET SDK 9 (or 8) with NuGet. Restore assemblies for .NET Framework 4.8 are pulled in automatically via the `Microsoft.NETFramework.ReferenceAssemblies.net48` NuGet package.
 
@@ -94,7 +118,7 @@ The build embeds `MQTTnet` and `Newtonsoft.Json` into the .exe via Costura.Fody,
 ## Project structure
 
 ```
-src/TaskbarMqtt/
+src/TaskbarMqtt/            Windows edition (.NET Framework 4.8 WinForms)
   Program.cs            # Entry, single-instance mutex, message-only window for 2nd-instance
   App/
     TrayContext.cs      # ApplicationContext: owns NotifyIcons, popup, MQTT, context menu
@@ -110,6 +134,22 @@ src/TaskbarMqtt/
   Assets/
     app.ico             # Tray icon (multi-resolution 16/32/48/64)
     button-default.ico  # Default button icon
+src/TaskbarMqtt.Linux/      Linux edition (.NET 9, Avalonia; reuses Config/ and Mqtt/)
+  Program.cs            # Entry, single-instance unix socket, X11 backend selection
+  App/
+    LinuxTrayContext.cs # Tray icons via StatusNotifierItem, popup, MQTT, tray menu
+    AutoStart.cs        # XDG autostart .desktop helper
+    ConfigStore.cs      # (shared, linked from TaskbarMqtt)
+    ImageUtils.cs       # SkiaSharp: decode, transparency, resize, rounded corners
+    PointerPosition.cs  # XQueryPointer for popup placement
+    SingleInstance.cs   # Unix socket for 2nd-instance show requests
+    SystemNotifications.cs # notify-send wrapper
+    ThemeDetector.cs    # Dark mode via xdg-desktop-portal / gsettings / kdeglobals
+  UI/
+    PopupWindow.cs      # Borderless hover panel
+    SettingsWindow.cs   # Tabbed settings dialog (General / Broker / Buttons / About)
+  Assets/
+    taskbar-mqtt.png    # App icon
 ```
 
 ## Regenerating the tray and button icons
@@ -128,8 +168,9 @@ MIT. Third-party: MQTTnet (MIT), Newtonsoft.Json (MIT), Costura.Fody (MIT).
 
 ## Version history
 
+- **1.9.1** — Linux edition: Avalonia-based port of the tray app (popup-panel and multi-icon modes, settings dialog, notifications, XDG autostart, single-instance via unix socket); `install.sh` / `uninstall.sh`; GitHub Actions workflow building Linux x64 and Windows binaries.
 - **1.9.0** — Grouped General tab sections with grey-out logic; Retain moved to Payload line in button rows; popup image centering fixes; watermark scaling fix; rounded corners via SetClip approach; per-button StretchImage; aspect-ratio preserving icon display; custom tray icon preview.
 
 ---
 
-**Keywords:** MQTT client, Windows tray app, notification area, IoT button, home automation, smart home, MQTT publisher, Windows taskbar, portable MQTT, dark mode, .NET Framework 4.8, WinForms, auto-reconnect, TLS support, custom icons, multi-icon tray.
+**Keywords:** MQTT client, tray app, notification area, IoT button, home automation, smart home, MQTT publisher, taskbar, portable MQTT, dark mode, Linux, KDE, GNOME, XFCE, Avalonia, .NET Framework 4.8, WinForms, auto-reconnect, TLS support, custom icons, multi-icon tray.
