@@ -31,6 +31,8 @@ namespace TaskbarMqtt.UI
         private readonly double _scale;
 
         private readonly DispatcherTimer _closeTimer;
+        private readonly Action _onSettings;
+        private readonly Action _onQuit;
 
         private static readonly bool IsDarkMode = ThemeDetector.IsDark;
 
@@ -45,7 +47,8 @@ namespace TaskbarMqtt.UI
 
         public PopupWindow(List<ButtonConfig> buttons, Func<int, SKBitmap> imageFor, Action<int> onClick,
             SKBitmap watermark, int popupSizePercent = 100, bool showTooltips = true,
-            bool showPayloadInTooltip = false, bool stayOpen = false)
+            bool showPayloadInTooltip = false, bool stayOpen = false,
+            Action onSettings = null, Action onQuit = null)
         {
             _buttons = buttons;
             _imageFor = imageFor;
@@ -54,6 +57,8 @@ namespace TaskbarMqtt.UI
             _showTooltips = showTooltips;
             _showPayloadInTooltip = showPayloadInTooltip;
             _stayOpen = stayOpen;
+            _onSettings = onSettings;
+            _onQuit = onQuit;
 
             _scale = Math.Max(0.25, Math.Min(2.0, popupSizePercent / 100.0));
             _buttonSize = (int)Math.Round(BaseButtonSize * _scale);
@@ -186,9 +191,57 @@ namespace TaskbarMqtt.UI
                 Background = BgBrush,
                 CornerRadius = new CornerRadius(formRadius),
                 Padding = new Thickness(_pad),
-                Child = panel,
                 ClipToBounds = true
             };
+
+            var dock = new DockPanel { LastChildFill = true };
+
+            var footerRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Spacing = 2
+            };
+            var footerButtonStyle = new Action<Button>(b =>
+            {
+                b.Padding = new Thickness(10, 2);
+                b.FontSize = Math.Max(9, Math.Round(10 * _scale));
+                b.Background = Brushes.Transparent;
+                b.BorderThickness = new Thickness(0);
+                b.Foreground = IsDarkMode ? BrushFrom(0xFFB8B8BC) : BrushFrom(0xFF505054);
+                b.MinHeight = 0;
+            });
+            var settingsBtn = new Button { Content = "Settings" };
+            footerButtonStyle(settingsBtn);
+            settingsBtn.Click += (s, e) =>
+            {
+                Hide();
+                try { _onSettings?.Invoke(); } catch { }
+            };
+            var quitBtn = new Button { Content = "Quit" };
+            footerButtonStyle(quitBtn);
+            quitBtn.Click += (s, e) =>
+            {
+                Hide();
+                try { _onQuit?.Invoke(); } catch { }
+            };
+            footerRow.Children.Add(settingsBtn);
+            footerRow.Children.Add(quitBtn);
+
+            var footer = new StackPanel { Orientation = Orientation.Vertical };
+            footer.Children.Add(new Border
+            {
+                Height = 1,
+                Background = BtnBorder,
+                Opacity = 0.6,
+                Margin = new Thickness(2, Math.Max(2, (int)Math.Round(5 * _scale)), 2, Math.Max(1, (int)Math.Round(2 * _scale)))
+            });
+            footer.Children.Add(footerRow);
+            DockPanel.SetDock(footer, Dock.Bottom);
+            dock.Children.Add(footer);
+            dock.Children.Add(panel);
+
+            border.Child = dock;
 
             Content = border;
 
@@ -237,39 +290,57 @@ namespace TaskbarMqtt.UI
 
         public void OpenAtPointer()
         {
-            int count = Math.Max(1, _buttons.Count);
-            double marginPerButton = Math.Max(2, (int)Math.Round(6 * _scale));
-            double width = _pad * 2 + count * (_buttonSize + marginPerButton);
-            double height = _pad * 2 + _buttonSize + marginPerButton;
-
+            ComputeSize(out double width, out double height);
             if (PointerPosition.TryGet(out int px, out int py))
             {
-                var screen = FindScreen(px, py);
-                var area = screen != null ? screen.WorkingArea : new PixelRect(0, 0, 1920, 1080);
-                int x = px - (int)(width / 2);
-                int y = py - (int)height - 10;
-                if (y < area.Y)
-                    y = py + 20;
-                if (x < area.X + 6)
-                    x = area.X + 6;
-                if (x + (int)width > area.X + area.Width - 6)
-                    x = area.X + area.Width - (int)width - 6;
-                if (y + (int)height > area.Y + area.Height - 6)
-                    y = area.Y + area.Height - (int)height - 6;
-                Position = new PixelPoint(x, y);
+                Position = ComputePosition(px, py, width, height);
             }
             else
             {
                 var screen = FindScreen(0, 0);
                 var area = screen != null ? screen.WorkingArea : new PixelRect(0, 0, 1920, 1080);
-                int x = area.X + area.Width - (int)width - 8;
-                int y = area.Y + area.Height - (int)height - 8;
-                Position = new PixelPoint(x, y);
+                Position = new PixelPoint(area.X + area.Width - (int)width - 8, area.Y + area.Height - (int)height - 8);
             }
+            ShowWindow();
+        }
 
+        public void OpenAt(int px, int py)
+        {
+            ComputeSize(out double width, out double height);
+            Position = ComputePosition(px, py, width, height);
+            ShowWindow();
+        }
+
+        private void ShowWindow()
+        {
             _closeTimer.Stop();
             Show();
             Activate();
+        }
+
+        private void ComputeSize(out double width, out double height)
+        {
+            int count = Math.Max(1, _buttons.Count);
+            double marginPerButton = Math.Max(2, (int)Math.Round(6 * _scale));
+            width = _pad * 2 + count * (_buttonSize + marginPerButton);
+            height = _pad * 2 + _buttonSize + marginPerButton + Math.Max(2, (int)Math.Round(26 * _scale));
+        }
+
+        private PixelPoint ComputePosition(int px, int py, double width, double height)
+        {
+            var screen = FindScreen(px, py);
+            var area = screen != null ? screen.WorkingArea : new PixelRect(0, 0, 1920, 1080);
+            int x = px - (int)(width / 2);
+            int y = py - (int)height - 10;
+            if (y < area.Y)
+                y = py + 20;
+            if (x < area.X + 6)
+                x = area.X + 6;
+            if (x + (int)width > area.X + area.Width - 6)
+                x = area.X + area.Width - (int)width - 6;
+            if (y + (int)height > area.Y + area.Height - 6)
+                y = area.Y + area.Height - (int)height - 6;
+            return new PixelPoint(x, y);
         }
 
         private Avalonia.Platform.Screen FindScreen(int x, int y)

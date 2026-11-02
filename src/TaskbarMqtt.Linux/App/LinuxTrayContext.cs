@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Collections;
-using Avalonia.Controls;
+using Avalonia.Threading;
 using SkiaSharp;
 using TaskbarMqtt.Config;
 using TaskbarMqtt.Mqtt;
@@ -17,10 +14,9 @@ namespace TaskbarMqtt.Platform
         private AppConfig _config;
         private readonly MqttService _mqtt;
 
-        private readonly List<TrayIcon> _trayIcons = new List<TrayIcon>();
+        private TrayIconService _tray;
         private PopupWindow _popup;
         private SettingsWindow _settings;
-        private NativeMenu _menu;
 
         private readonly SKBitmap _appIcon;
         private readonly SKBitmap _defaultButtonIcon;
@@ -39,29 +35,39 @@ namespace TaskbarMqtt.Platform
             _mqtt.Error += msg => SystemNotifications.Show("MQTT", msg);
         }
 
-        public void Start()
+        public async void Start()
         {
-            BuildMenu();
-            BuildTray();
+            _tray = new TrayIconService();
+            _tray.ItemActivated += OnItemActivated;
+            _tray.ItemContextMenu += OnItemContextMenu;
+            try
+            {
+                await _tray.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                SystemNotifications.Show("Taskbar MQTT", "Tray init failed: " + ex.Message);
+                return;
+            }
+            await UpdateTrayItemsAsync();
             _mqtt.UpdateConfig(_config.Broker);
         }
 
-        private void BuildMenu()
+        private void OnItemActivated(int index, int x, int y)
         {
-            _menu = new NativeMenu();
-            if (_config.DisplayMode == DisplayMode.PopupPanel)
+            if (_config.DisplayMode == DisplayMode.MultipleIcons)
             {
-                var miPanel = new NativeMenuItem("Open panel");
-                miPanel.Click += (s, e) => ShowPopup();
-                _menu.Add(miPanel);
+                PublishButton(index);
             }
-            var miSettings = new NativeMenuItem("Settings…");
-            miSettings.Click += (s, e) => OpenSettings();
-            _menu.Add(miSettings);
-            _menu.Add(new NativeMenuItemSeparator());
-            var miQuit = new NativeMenuItem("Quit");
-            miQuit.Click += (s, e) => Quit();
-            _menu.Add(miQuit);
+            else
+            {
+                ShowPopupAt(x, y);
+            }
+        }
+
+        private void OnItemContextMenu(int index, int x, int y)
+        {
+            ShowPopupAt(x, y);
         }
 
         private void OpenSettings()
@@ -82,75 +88,46 @@ namespace TaskbarMqtt.Platform
             _settings.Show();
         }
 
-        private void OnSettingsApplied(AppConfig newConfig)
+        private void Quit()
+        {
+            Dispose();
+            App.RequestShutdown();
+        }
+
+        private async void OnSettingsApplied(AppConfig newConfig)
         {
             _config = newConfig;
             _mqtt.UpdateConfig(_config.Broker);
             HidePopup();
             _popup = null;
-            BuildMenu();
-            BuildTray();
+            await UpdateTrayItemsAsync();
         }
 
-        private void BuildTray()
+        private async Task UpdateTrayItemsAsync()
         {
-            DisposeTray();
+            if (_tray == null) return;
+
             if (_config.DisplayMode == DisplayMode.MultipleIcons)
             {
-                for (int i = 0; i < _config.Buttons.Count; i++)
+                for (int i = 0; i < TrayIconService.MaxVisibleIcons && i < _config.Buttons.Count; i++)
                 {
-                    int captured = i;
-                    var icon = IconForButton(captured);
-                    var ti = new TrayIcon
-                    {
-                        Icon = ImageUtils.ToIcon(icon) ?? ImageUtils.ToIcon(_appIcon),
-                        ToolTipText = TooltipFor(captured),
-                        Menu = _menu,
-                        IsVisible = true
-                    };
-                    ti.Clicked += (s, e) => PublishButton(captured);
-                    _trayIcons.Add(ti);
+                    var icon = IconForButton(i);
+                    await _tray.SetItemAsync(i, icon, TooltipFor(i), "Left-click: publish\nRight-click: open panel", active: true);
+                }
+                for (int i = _config.Buttons.Count; i < TrayIconService.MaxVisibleIcons; i++)
+                {
+                    await _tray.SetItemAsync(i, null, "Taskbar MQTT", "", active: false);
                 }
             }
             else
             {
-                var ti = new TrayIcon
+                var icon = LoadCustomIcon();
+                await _tray.SetItemAsync(0, icon, "Taskbar MQTT", "Left-click: open panel", active: true);
+                for (int i = 1; i < TrayIconService.MaxVisibleIcons; i++)
                 {
-                    Icon = ImageUtils.ToIcon(LoadCustomIcon()) ?? ImageUtils.ToIcon(_appIcon),
-                    ToolTipText = "Taskbar MQTT",
-                    Menu = _menu,
-                    IsVisible = true
-                };
-                ti.Clicked += (s, e) => ShowPopup();
-                _trayIcons.Add(ti);
-            }
-
-            var app = Application.Current;
-            if (app != null)
-            {
-                var icons = new TrayIcons();
-                icons.AddRange(_trayIcons);
-                TrayIcon.SetIcons(app, icons);
-            }
-        }
-
-        private void DisposeTray()
-        {
-            foreach (var ti in _trayIcons)
-            {
-                try
-                {
-                    ti.IsVisible = false;
-                    ti.Dispose();
-                }
-                catch
-                {
+                    await _tray.SetItemAsync(i, null, "Taskbar MQTT", "", active: false);
                 }
             }
-            _trayIcons.Clear();
-            var app = Application.Current;
-            if (app != null)
-                TrayIcon.SetIcons(app, new TrayIcons());
         }
 
         private SKBitmap LoadCustomIcon()
@@ -236,15 +213,24 @@ namespace TaskbarMqtt.Platform
             }
         }
 
-        private void ShowPopup()
+        private void ShowPopupAt(int x, int y)
         {
             if (_config.DisplayMode != DisplayMode.PopupPanel) return;
+            bool haveCoords = x != 0 || y != 0;
+            if (!haveCoords)
+            {
+                haveCoords = PointerPosition.TryGet(out x, out y);
+            }
             if (_popup == null)
             {
                 _popup = new PopupWindow(_config.Buttons, GetButtonImage, PublishButton, _mqttIcon,
-                    _config.PopupSizePercent, _config.ShowTooltips, _config.ShowPayloadInTooltip, _config.PopupStaysOpen);
+                    _config.PopupSizePercent, _config.ShowTooltips, _config.ShowPayloadInTooltip, _config.PopupStaysOpen,
+                    OpenSettings, Quit);
             }
-            _popup.OpenAtPointer();
+            if (haveCoords)
+                _popup.OpenAt(x, y);
+            else
+                _popup.OpenAtPointer();
         }
 
         private void HidePopup()
@@ -272,7 +258,7 @@ namespace TaskbarMqtt.Platform
                 bool ok = await _mqtt.PublishAsync(btn);
                 if (!ok)
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    Dispatcher.UIThread.Post(() =>
                         SystemNotifications.Show("Publish failed", "Could not send '" + btn.Topic + "'. Check broker connection."));
                 }
             });
@@ -283,14 +269,17 @@ namespace TaskbarMqtt.Platform
             if (index < 0 || index >= _config.Buttons.Count) return "Taskbar MQTT";
             var b = _config.Buttons[index];
             var label = string.IsNullOrEmpty(b.Label) ? "Button " + (index + 1) : b.Label;
-            return label.Length > 63 ? label.Substring(0, 63) : label;
+            var desc = label.Length > 63 ? label.Substring(0, 63) : label;
+            if (!string.IsNullOrEmpty(b.Topic))
+                desc += "\n" + b.Topic;
+            return desc;
         }
 
         public void OnExternalShowRequest()
         {
             if (_config.DisplayMode == DisplayMode.PopupPanel)
             {
-                ShowPopup();
+                ShowPopupAt(0, 0);
             }
             else
             {
@@ -298,15 +287,8 @@ namespace TaskbarMqtt.Platform
             }
         }
 
-        private void Quit()
-        {
-            Dispose();
-            App.RequestShutdown();
-        }
-
         public void Dispose()
         {
-            DisposeTray();
             HidePopup();
             _popup = null;
             try
@@ -317,6 +299,8 @@ namespace TaskbarMqtt.Platform
             catch
             {
             }
+            try { _tray?.Dispose(); } catch { }
+            _tray = null;
             _mqtt.Dispose();
         }
     }

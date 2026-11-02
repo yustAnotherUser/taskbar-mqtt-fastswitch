@@ -27,7 +27,7 @@ namespace TaskbarMqtt
         public static AppBuilder BuildAvaloniaApp()
             => AppBuilder.Configure<App>()
                 .UsePlatformDetect()
-                .With(new X11PlatformOptions { EnableIme = true })
+                .With(new X11PlatformOptions { EnableIme = false })
                 .LogToTrace();
     }
 }

@@ -6,10 +6,10 @@
     <RootNamespace>TaskbarMqtt</RootNamespace>
     <AssemblyName>taskbar-mqtt</AssemblyName>
     <Nullable>disable</Nullable>
-    <LangVersion>12.0</LangVersion>
+    <LangVersion>13.0</LangVersion>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <Product>Taskbar MQTT Client</Product>
-    <Version>1.9.1</Version>
+    <Version>1.9.2</Version>
     <InvariantGlobalization>false</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
@@ -21,6 +21,8 @@
     <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
+    <PackageReference Include="Tmds.DBus.SourceGenerator" Version="0.0.21" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,6 +35,12 @@
     <EmbeddedResource Include="Assets\button-default.ico" />
     <EmbeddedResource Include="Assets\mqtt-icon.png" />
     <EmbeddedResource Include="..\TaskbarMqtt\Assets\app.ico" LinkBase="Assets" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="DBusXml\org.kde.StatusNotifierItem.xml" DBusGeneratorMode="Handler" />
+    <AdditionalFiles Include="DBusXml\org.freedesktop.DBus.xml" DBusGeneratorMode="Proxy" />
+    <AdditionalFiles Include="DBusXml\org.kde.StatusNotifierWatcher.xml" DBusGeneratorMode="Proxy" />
   </ItemGroup>
 
 </Project>
