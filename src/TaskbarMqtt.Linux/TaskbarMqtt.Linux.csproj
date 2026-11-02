@@ -9,7 +9,7 @@
     <LangVersion>13.0</LangVersion>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <Product>Taskbar MQTT Client</Product>
-    <Version>1.9.2</Version>
+    <Version>1.9.3</Version>
     <InvariantGlobalization>false</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>

@@ -285,7 +285,7 @@ namespace TaskbarMqtt.UI
             {
                 "Taskbar MQTT Client",
                 "",
-                "Version 1.9.2 (Linux edition, Avalonia)",
+                "Version 1.9.3 (Linux edition, Avalonia)",
                 "",
                 "Created with OpenCode's MiniMax V3:free",
                 "OpenCode's Big Pickle",

@@ -16,6 +16,7 @@ namespace TaskbarMqtt.Platform
 
         private TrayIconService _tray;
         private PopupWindow _popup;
+        private TrayMenuWindow _menu;
         private SettingsWindow _settings;
 
         private readonly SKBitmap _appIcon;
@@ -67,7 +68,37 @@ namespace TaskbarMqtt.Platform
 
         private void OnItemContextMenu(int index, int x, int y)
         {
-            ShowPopupAt(x, y);
+            ShowMenuAt(x, y);
+        }
+
+        private void ShowMenuAt(int x, int y)
+        {
+            HidePopup();
+            bool haveCoords = x != 0 || y != 0;
+            if (!haveCoords)
+            {
+                haveCoords = PointerPosition.TryGet(out x, out y);
+            }
+            if (_menu == null)
+            {
+                _menu = new TrayMenuWindow(ShowPopupFromMenu, OpenSettings, Quit);
+            }
+            if (haveCoords)
+                _menu.OpenAt(x, y, _config.DisplayMode == DisplayMode.PopupPanel);
+            else
+                _menu.OpenAt(0, 0, _config.DisplayMode == DisplayMode.PopupPanel);
+        }
+
+        private void ShowPopupFromMenu()
+        {
+            if (_config.DisplayMode == DisplayMode.PopupPanel)
+            {
+                ShowPopupAt(0, 0);
+            }
+            else
+            {
+                SystemNotifications.Show("Already running", "Taskbar MQTT Client is already in the notification area.");
+            }
         }
 
         private void OpenSettings()
@@ -112,7 +143,7 @@ namespace TaskbarMqtt.Platform
                 for (int i = 0; i < TrayIconService.MaxVisibleIcons && i < _config.Buttons.Count; i++)
                 {
                     var icon = IconForButton(i);
-                    await _tray.SetItemAsync(i, icon, TooltipFor(i), "Left-click: publish\nRight-click: open panel", active: true);
+                    await _tray.SetItemAsync(i, icon, TooltipFor(i), "Left-click: publish\nRight-click: menu", active: true);
                 }
                 for (int i = _config.Buttons.Count; i < TrayIconService.MaxVisibleIcons; i++)
                 {
@@ -122,7 +153,7 @@ namespace TaskbarMqtt.Platform
             else
             {
                 var icon = LoadCustomIcon();
-                await _tray.SetItemAsync(0, icon, "Taskbar MQTT", "Left-click: open panel", active: true);
+                await _tray.SetItemAsync(0, icon, "Taskbar MQTT", "Left-click: open panel\nRight-click: menu", active: true);
                 for (int i = 1; i < TrayIconService.MaxVisibleIcons; i++)
                 {
                     await _tray.SetItemAsync(i, null, "Taskbar MQTT", "", active: false);
@@ -216,6 +247,7 @@ namespace TaskbarMqtt.Platform
         private void ShowPopupAt(int x, int y)
         {
             if (_config.DisplayMode != DisplayMode.PopupPanel) return;
+            HideMenu();
             bool haveCoords = x != 0 || y != 0;
             if (!haveCoords)
             {
@@ -238,6 +270,17 @@ namespace TaskbarMqtt.Platform
             try
             {
                 _popup?.Hide();
+            }
+            catch
+            {
+            }
+        }
+
+        private void HideMenu()
+        {
+            try
+            {
+                _menu?.Hide();
             }
             catch
             {
@@ -291,6 +334,8 @@ namespace TaskbarMqtt.Platform
         {
             HidePopup();
             _popup = null;
+            HideMenu();
+            _menu = null;
             try
             {
                 if (_settings != null)
