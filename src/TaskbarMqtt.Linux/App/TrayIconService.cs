@@ -11,6 +11,16 @@ namespace TaskbarMqtt.Platform
     {
         public event Action<int, int, int> ItemActivated;
         public event Action<int, int, int> ItemContextMenu;
+        public event Action OpenPanelRequested;
+        public event Action SettingsRequested;
+        public event Action QuitRequested;
+
+        private readonly Func<bool> _includeOpenPanel;
+
+        public TrayIconService(Func<bool> includeOpenPanel)
+        {
+            _includeOpenPanel = includeOpenPanel;
+        }
 
         public const int MaxVisibleIcons = 9;
         private const int Capacity = 12;
@@ -72,6 +82,15 @@ namespace TaskbarMqtt.Platform
             var handler = new StatusNotifierItemObj(this, index, connection, new ObjectPath("/menu"));
             pathHandler.Add(handler);
             connection.AddMethodHandler(pathHandler);
+
+            var menuPathHandler = new PathHandler("/menu");
+            var menuObj = new TrayMenuObj(_includeOpenPanel,
+                () => OpenPanelRequested?.Invoke(),
+                () => SettingsRequested?.Invoke(),
+                () => QuitRequested?.Invoke(),
+                connection);
+            menuPathHandler.Add(menuObj);
+            connection.AddMethodHandler(menuPathHandler);
 
             var busName = "org.kde.StatusNotifierItem.taskbar_mqtt_" + Environment.ProcessId + "_" + index;
             var dbus = new OrgFreedesktopDBusProxy(connection, "org.freedesktop.DBus", new ObjectPath("/org/freedesktop/DBus"));

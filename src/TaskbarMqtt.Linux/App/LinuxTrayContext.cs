@@ -38,9 +38,12 @@ namespace TaskbarMqtt.Platform
 
         public async void Start()
         {
-            _tray = new TrayIconService();
+            _tray = new TrayIconService(() => _config.DisplayMode == DisplayMode.PopupPanel);
             _tray.ItemActivated += OnItemActivated;
             _tray.ItemContextMenu += OnItemContextMenu;
+            _tray.OpenPanelRequested += () => ShowPopupAt(0, 0);
+            _tray.SettingsRequested += OpenSettings;
+            _tray.QuitRequested += Quit;
             try
             {
                 await _tray.StartAsync();

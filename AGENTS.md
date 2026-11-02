@@ -11,7 +11,7 @@ dotnet publish src/TaskbarMqtt.Linux/TaskbarMqtt.Linux.csproj -c Release -r linu
 ./install.sh [PREFIX]    # default ~/.local; ./uninstall.sh [PREFIX] to remove
 ```
 - Project: `src/TaskbarMqtt.Linux/` (.NET 9, Avalonia 11); shares `Config/` and `Mqtt/` sources with the Windows project via `<Compile Include>` links
-- Tray: custom StatusNotifierItem service — `App/TrayIconService.cs` subclasses the source-generated `OrgKdeStatusNotifierItemHandler` (packages `Tmds.DBus.Protocol` + `Tmds.DBus.SourceGenerator`, interface XMLs in `DBusXml/`); one DBus connection + bus name per icon, popup positioned via the `Activate(x,y)` click coordinates
+- Tray: custom StatusNotifierItem service — `App/TrayIconService.cs` subclasses the source-generated `OrgKdeStatusNotifierItemHandler`, `App/TrayMenuObj.cs` the generated `ComCanonicalDbusmenuHandler` (packages `Tmds.DBus.Protocol` + `Tmds.DBus.SourceGenerator`, interface XMLs in `DBusXml/`); one DBus connection + bus name per icon with the dbusmenu exported at `/menu`; popup positioned via the `Activate(x,y)` click coordinates
 - Config on Linux: `~/.config/TaskbarMqtt/config.json` (a `config.json` next to the binary wins, portable layout)
 - Test registration with `gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems`; simulate a click with `busctl --user call <busname> /StatusNotifierItem org.kde.StatusNotifierItem Activate ii <x> <y>`
 

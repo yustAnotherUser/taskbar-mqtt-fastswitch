@@ -20,7 +20,7 @@ Two display modes are available:
 
 The Linux edition (`taskbar-mqtt`) is built with .NET 9 and Avalonia. The tray icons are implemented directly on the freedesktop StatusNotifierItem protocol (via Tmds.DBus.Protocol), so they work with KDE Plasma, XFCE, Cinnamon, MATE, LXQt, Budgie, Unity, and GNOME with the AppIndicator extension. The popup panel opens right at the tray icon using the click coordinates the desktop passes with the Activate call. Settings are stored as XDG config, autostart uses `~/.config/autostart`, and notifications go through `notify-send`.
 
-Left-click a tray icon to open the popup panel or publish. Right-click opens a small menu at the icon with Settings… and Quit (plus Open panel in popup-panel mode).
+Left-click a tray icon to open the popup panel or publish. Right-click opens a native menu at the icon (served over the com.canonical.dbusmenu protocol) with Settings… and Quit (plus Open panel in popup-panel mode).
 
 ### Install a release binary
 
@@ -170,6 +170,7 @@ MIT. Third-party: MQTTnet (MIT), Newtonsoft.Json (MIT), Costura.Fody (MIT).
 
 ## Version history
 
+- **1.9.4** — Linux: right-click menu served via the com.canonical.dbusmenu protocol, so the desktop renders it natively (fixes missing menu in multi-icon mode on Plasma).
 - **1.9.3** — Linux: right-click opens a tray menu (Settings…, Open panel, Quit) at the icon in both display modes; multi-icon mode regains access to the settings dialog.
 - **1.9.2** — Linux: tray icons re-implemented on a custom StatusNotifierItem service (Tmds.DBus.Protocol + source-generated handlers); the popup panel now opens exactly at the tray icon using the desktop-provided Activate coordinates (fixes misplaced popup on KDE Wayland); right-click opens the panel with Settings/Quit in its footer; multi-icon mode uses one bus name per icon.
 - **1.9.1** — Linux edition: Avalonia-based port of the tray app (popup-panel and multi-icon modes, settings dialog, notifications, XDG autostart, single-instance via unix socket); `install.sh` / `uninstall.sh`; GitHub Actions workflow building Linux x64 and Windows binaries.
